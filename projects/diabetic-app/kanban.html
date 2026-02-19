@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GLP1Companion Project Board</title>
+    <meta http-equiv="refresh" content="30">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        h1 { color: #10b981; text-align: center; }
+        h2 { color: #f59e0b; border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 0; }
+        .container { display: flex; gap: 20px; }
+        .column { flex: 1; background: #16213e; padding: 15px; border-radius: 10px; min-width: 280px; min-height: 400px; }
+        .column.drag-over { background: #1e3a5f; border: 2px dashed #10b981; }
+        .task { background: #0f3460; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 4px solid #10b981; cursor: grab; user-select: none; }
+        .task:active { cursor: grabbing; }
+        .task.todo { border-left-color: #f59e0b; }
+        .task.done { border-left-color: #10b981; }
+        .task.p0 { border-left-color: #ef4444; }
+        .task.p1 { border-left-color: #f59e0b; }
+        .task.p2 { border-left-color: #3b82f6; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; }
+        .task-title { font-weight: bold; }
+        .status { font-size: 11px; padding: 2px 8px; border-radius: 3px; }
+        .status-done { background: #10b981; color: #000; }
+        .status-todo { background: #f59e0b; color: #000; }
+        .priority-p0 { background: #ef4444; color: #fff; }
+        .priority-p1 { background: #f59e0b; color: #000; }
+        .priority-p2 { background: #3b82f6; color: #fff; }
+        .notes { font-size: 12px; color: #888; margin-top: 5px; }
+        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #333; }
+        .instructions { text-align: center; color: #888; font-size: 14px; margin-bottom: 15px; }
+        .save-btn { display: block; margin: 10px auto; padding: 10px 20px; background: #10b981; color: #000; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .save-btn:hover { background: #0d9668; }
+        .save-msg { text-align: center; color: #10b981; margin-top: 5px; display: none; }
+    </style>
+</head>
+<body>
+    <h1>GLP1Companion Project Board</h1>
+    <p class="instructions">Drag and drop tasks between columns. Click Save to persist changes.</p>
+    <button class="save-btn" onclick="saveState()">Save Changes</button>
+    <p class="save-msg" id="saveMsg">Changes saved!</p>
+    
+    <div class="container">
+        <!-- TO DO COLUMN -->
+        <div class="column" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)">
+            <h2>TO DO</h2>
+        </div>
+
+        <!-- IN PROGRESS COLUMN -->
+        <div class="column" id="inprogress" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)">
+            <h2>IN PROGRESS</h2>
+        </div>
+
+        <!-- DONE COLUMN -->
+        <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)">
+            <h2>DONE</h2>
+        </div>
+    </div>
+
+    <div class="footer">
+        Last updated: Wed, Feb 18 2026 | Auto-refreshes every 30 seconds | Changes are saved to browser
+    </div>
+
+    <script>
+        // Task data
+        const tasks = [
+            {id: 'task1', title: 'Deploy to Streamlit Cloud', priority: 'p0', notes: 'Test deployment', status: 'todo'},
+            {id: 'task2', title: 'Set up Stripe Account', priority: 'p1', notes: 'For payments', status: 'todo'},
+            {id: 'task24', title: 'Add AI Chat Interface', priority: 'p1', notes: 'Conversational AI coach', status: 'todo'},
+            {id: 'task25', title: 'Add Proactive Insights', priority: 'p1', notes: 'Auto-alerts, patterns', status: 'todo'},
+            {id: 'task26', title: 'Apple Health Sync', priority: 'p1', notes: 'Auto-import glucose, weight', status: 'todo'},
+            {id: 'task27', title: 'Google Fit Sync', priority: 'p1', notes: 'Auto-import activity, weight', status: 'todo'},
+            {id: 'task28', title: 'Bluetooth Device Sync', priority: 'p1', notes: 'Connect to glucose monitors, scales', status: 'todo'},
+            {id: 'task29', title: 'Voice Logging', priority: 'p1', notes: 'Hey GLP1, log my glucose', status: 'todo'},
+            {id: 'task30', title: 'Photo Food Logging', priority: 'p1', notes: 'Snap pic, AI logs carbs', status: 'todo'},
+            {id: 'task3', title: 'Add Insights Engine', priority: 'p2', notes: '', status: 'todo'},
+            {id: 'task4', title: 'Add PDF Export', priority: 'p2', notes: 'For doctor visits', status: 'todo'},
+            {id: 'task5', title: 'Build Landing Page', priority: 'p2', notes: '', status: 'todo'},
+            {id: 'task6', title: 'Launch on Product Hunt', priority: 'p2', notes: '', status: 'todo'},
+            {id: 'task7', title: 'Post to Reddit/Facebook/Twitter', priority: 'p2', notes: '', status: 'todo'},
+            {id: 'task8', title: 'Start Waitlist - First Sales', priority: 'p2', notes: '', status: 'todo'},
+            {id: 'task9', title: 'Interview 5 Diabetics', priority: 'p2', notes: 'Research validation', status: 'todo'},
+            {id: 'task10', title: 'Join Reddit/Facebook Groups', priority: 'p2', notes: 'For launch', status: 'todo'},
+            {id: 'task11', title: 'Domain Name', priority: 'done', notes: 'glp1companion.io', status: 'done'},
+            {id: 'task12', title: 'Streamlit Project Setup', priority: 'done', notes: 'app/app.py', status: 'done'},
+            {id: 'task13', title: 'SQLite Database', priority: 'done', notes: '', status: 'done'},
+            {id: 'task14', title: 'User Auth', priority: 'done', notes: 'Sign up / login', status: 'done'},
+            {id: 'task15', title: 'Dashboard UI', priority: 'done', notes: '', status: 'done'},
+            {id: 'task16', title: 'Glucose Logging', priority: 'done', notes: '', status: 'done'},
+            {id: 'task17', title: 'Weight Tracking', priority: 'done', notes: '', status: 'done'},
+            {id: 'task18', title: 'GLP-1 Medication Tracker', priority: 'done', notes: '', status: 'done'},
+            {id: 'task19', title: 'Side Effects Log', priority: 'done', notes: '', status: 'done'},
+            {id: 'task20', title: 'Food Logging', priority: 'done', notes: '', status: 'done'},
+            {id: 'task21', title: 'MVP Spec Document', priority: 'done', notes: '', status: 'done'},
+            {id: 'task22', title: 'Pricing Tiers', priority: 'done', notes: 'Free / $12.99 / $29.99', status: 'done'},
+            {id: 'task23', title: 'Deploy to Streamlit Cloud', priority: 'done', notes: 'share.streamlit.io', status: 'done'}
+        ];
+
+        function createTaskElement(task) {
+            const div = document.createElement('div');
+            div.className = `task ${task.status} ${task.priority}`;
+            div.draggable = true;
+            div.id = task.id;
+            div.setAttribute('data-status', task.status);
+            div.ondragstart = drag;
+            
+            let html = `<div class="task-header">
+                <span class="task-title">${task.title}</span>
+                <span class="status ${task.status === 'done' ? 'status-done' : 'priority-' + task.priority}">${task.status === 'done' ? 'DONE' : task.priority.toUpperCase()}</span>
+            </div>`;
+            if (task.notes) {
+                html += `<div class="notes">${task.notes}</div>`;
+            }
+            div.innerHTML = html;
+            return div;
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('glp1Kanban');
+            const taskStatus = saved ? JSON.parse(saved) : {};
+            
+            tasks.forEach(task => {
+                const status = taskStatus[task.id] || task.status;
+                const column = document.getElementById(status);
+                if (column) {
+                    task.status = status;
+                    column.appendChild(createTaskElement(task));
+                }
+            });
+
+            // Add placeholder if empty
+            ['todo', 'inprogress', 'done'].forEach(colId => {
+                const col = document.getElementById(colId);
+                if (col.children.length <= 1) { // only h2
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'task todo';
+                    placeholder.style.borderLeftColor = '#3b82f6';
+                    placeholder.innerHTML = '<div class="notes" style="color: #888; text-align: center;">Drag tasks here</div>';
+                    placeholder.style.pointerEvents = 'none';
+                    col.appendChild(placeholder);
+                }
+            });
+        }
+
+        function saveState() {
+            const taskStatus = {};
+            document.querySelectorAll('.task').forEach(task => {
+                if (!task.id) return;
+                const column = task.parentElement.id;
+                if (column) {
+                    taskStatus[task.id] = column;
+                }
+            });
+            localStorage.setItem('glp1Kanban', JSON.stringify(taskStatus));
+            
+            const msg = document.getElementById('saveMsg');
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 2000);
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.add('drag-over');
+        }
+        
+        function leaveDrop(ev) {
+            ev.currentTarget.classList.remove('drag-over');
+        }
+        
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+            ev.target.style.opacity = '0.5';
+        }
+        
+        function drop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.remove('drag-over');
+            
+            var data = ev.dataTransfer.getData("text");
+            var task = document.getElementById(data);
+            if (!task) return;
+            
+            task.style.opacity = '1';
+            
+            // Remove placeholders
+            var placeholders = ev.currentTarget.querySelectorAll('.task[style*="border-left-color: #3b82f6"]');
+            placeholders.forEach(p => p.remove());
+            
+            ev.currentTarget.appendChild(task);
+            
+            // Update status class
+            task.setAttribute('data-status', ev.currentTarget.id);
+            task.className = `task ${ev.currentTarget.id} ${task.className.includes('p0') ? 'p0' : task.className.includes('p1') ? 'p1' : task.className.includes('p2') ? 'p2' : 'done'}`;
+        }
+
+        // Load on page load
+        loadState();
+    </script>
+</body>
+</html>
