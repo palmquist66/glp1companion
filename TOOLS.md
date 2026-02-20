@@ -37,4 +37,12 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 
 ---
 
+## GLP1Companion App
+
+- **Public URL:** https://glp1companion-ybxqlfaewlaev55yeeentt.streamlit.app
+- **Custom domain (not working):** glp1companion.io (purchased but not pointing to Streamlit)
+- **Repo:** https://github.com/palmquist66/glp1companion
+
+---
+
 Add whatever helps you do your job. This is your cheat sheet.

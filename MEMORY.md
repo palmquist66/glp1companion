@@ -12,3 +12,14 @@ James's morning brief job was failing for 4 days before we noticed. The isolated
 
 - **Kanban:** Keep `projects/diabetic-app/kanban.md` and `kanban.html` in sync when updating tasks
 - **HTML kanban:** Located at `projects/diabetic-app/kanban.html` — auto-refreshes every 30 seconds
+
+## Streamlit Custom Domains
+
+**Lesson learned (Feb 20, 2026):** Streamlit Community Cloud free tier does NOT support custom domains natively (no "Custom domains" setting in app settings). 
+
+**Solution:** Use Cloudflare redirect:
+1. Set up Cloudflare DNS with nameservers at Namecheap
+2. Create a Cloudflare Redirect Rule (301) from domain → Streamlit app URL
+3. Works, but users see the Streamlit URL in browser address bar
+
+**Alternative (if native domain needed):** Deploy to Render.com or Railway (both free, proper custom domain support)

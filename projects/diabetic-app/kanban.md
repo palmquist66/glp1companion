@@ -19,7 +19,9 @@
 | 🔴 P0 | Build user auth (sign up/login) | Week 2 | ✅ Done | Implemented in app.py |
 | 🔴 P0 | Create dashboard UI | Week 2 | ✅ Done | Implemented in app.py |
 | 🔴 P0 | Deploy to Streamlit Cloud | Week 2 | ✅ Done | share.streamlit.io |
-| 🔴 P0 | Choose domain name | Week 2 | ✅ Done | glp1companion.io |
+| 🔴 P0 | Choose domain name | Week 2 | ✅ Done | glp1companion.io | DNS on Namecheap → Cloudflare (redirect to Streamlit URL) |
+
+| Domain setup issue | 2026-02-20 | Streamlit Cloud free tier doesn't support custom domains natively. Solution: Cloudflare redirect rule (301) from glp1companion.io → Streamlit URL |
 | 🔴 P0 | Define GLP-1 medication list | Week 1 | ✅ Done | `glp1-medications.md` |
 
 ### 🟡 P1 - Week 3: Core Features
@@ -32,7 +34,7 @@
 | 🟡 P1 | Add side effects log | Week 3 | ✅ Done | Implemented in app.py |
 | 🟡 P1 | Add food logging (basic) | Week 3 | ✅ Done | Implemented in app.py |
 | 🟡 P1 | Set up Stripe account | Week 3 | Todo | For payments |
-| 🟡 P1 | Add AI Chat Interface | Week 3 | Todo | Conversational AI coach |
+| 🟡 P1 | Add AI Chat Interface | Week 3 | ✅ Done | Oakley built, deployed |
 | 🟡 P1 | Add Proactive Insights | Week 3 | Todo | Auto-alerts, patterns |
 
 ### 🔌 P1 - Data Integration (The Agent Advantage)
@@ -92,10 +94,9 @@
 | Side effects log | 2026-02-18 | Implemented in app.py |
 | Food logging | 2026-02-18 | Implemented in app.py |
 | GLP-1 medication list | 2026-02-17 | `glp1-medications.md` |
-
----
-
-## Future Bot Tasks (Automate Later)
+| Rename app to GLP1Companion | 2026-02-18 | Oakley built, deployed |
+| Add AI Chat Interface | 2026-02-18 | deployed |
+ Oakley built,| Deploy to Streamlit Cloud | 2026-02-18 | share.streamlit.io | (Automate Later)
 
 | Task | Bot Solution |
 |------|--------------|
