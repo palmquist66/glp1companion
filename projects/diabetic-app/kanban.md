@@ -35,7 +35,7 @@
 | 🟡 P1 | Add food logging (basic) | Week 3 | ✅ Done | Implemented in app.py |
 | 🟡 P1 | Set up Stripe account | Week 3 | Todo | For payments |
 | 🟡 P1 | Add AI Chat Interface | Week 3 | ✅ Done | Oakley built, deployed |
-| 🟡 P1 | Add Proactive Insights | Week 3 | Todo | Auto-alerts, patterns |
+| 🟡 P1 | Add Proactive Insights | Week 3 | ✅ Done | Glucose alerts, weight trends, med reminders, side effect patterns, weekly summary |
 
 ### 🔌 P1 - Data Integration (The Agent Advantage)
 
