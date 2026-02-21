@@ -1,28 +1,85 @@
-# GLP1Companion Feedback Log
+# GLP1Companion Feedback System
 
-## Bugs
-| Date | Issue | Status | Notes |
-|------|-------|--------|-------|
-| 2026-02-20 | Database error: missing `other_diabetes_med` column | ✅ Fixed | Added auto-migration code |
-| 2026-02-20 | Login not working - users had to create new account | 🔄 In Progress | Need to investigate session persistence |
-| 2026-02-20 | Sidebar not showing | ✅ Fixed | CSS was hiding it |
+## 📥 How to Add Feedback
 
-## Suggestions
-| Date | From | Suggestion | Status | Notes |
-|------|------|------------|--------|-------|
-| 2026-02-20 | James | Make navigation clearer than emoji tabs | ✅ Done | Switched to sidebar with text |
-| 2026-02-20 | James | Track more nutrients from food photos | ✅ Done | Now tracks calories, fat, protein |
-| 2026-02-20 | James | Scan nutrition labels from packages | ✅ Done | AI analyzes food AND nutrition labels |
+**Quick add** - Just message Riles with:
+- Bug: "Bug: [what happened]"
+- Suggestion: "Suggestion: [what you'd like]"
+- Comment: "Thought: [your thoughts]"
 
-## Feature Requests (Future)
-| Priority | Feature | Notes |
-|----------|---------|-------|
-| 🔴 P0 | Apple Health Sync | iPhone integration |
-| 🔴 P0 | Landing Page | For launch |
-| 🟡 P1 | PDF Export | For doctor visits |
-| 🟡 P1 | Voice Logging | "Hey app, log my glucose 120" |
-| 🟡 P1 | Stripe Payments | Monetization |
-| 🟢 P2 | Android App | Mobile native |
+Or edit this file directly.
 
-## User Comments
-*Add user feedback here*
+---
+
+## 📋 Incoming Feedback (Unreviewed)
+
+### New This Session
+- [ ] (2026-02-20) Mobile sidebar covers almost whole screen → Made narrower & auto-close
+- [ ] (2026-02-20) Login not persisting - users must recreate account
+
+### From Users (To Be Triaged)
+*Add user feedback here when reported*
+
+---
+
+## 🔄 To Review & Prioritize
+
+| # | Date | Feedback | Category | Severity | Effort | Status |
+|---|------|----------|----------|----------|--------|--------|
+| 1 | 2026-02-20 | Login doesn't work - user created new account multiple times | Bug | 🔴 High | Medium | Investigating |
+| 2 | - | [Pending review] | | | | |
+| 3 | - | [Pending review] | | | | |
+
+---
+
+## ✅ Completed & Actioned
+
+| Date | Feedback | Action Taken |
+|------|----------|--------------|
+| 2026-02-20 | Navigation emojis too small | Switched to sidebar with text labels |
+| 2026-02-20 | Want more nutrients from food photos | Added calories, fat, protein tracking |
+| 2026-02-20 | Want to scan nutrition labels | AI now reads labels |
+| 2026-02-20 | Domain not working | Cloudflare redirect solution |
+
+---
+
+## 📊 Prioritization Framework
+
+### Severity (Impact on Users)
+- 🔴 **Critical**: App crashes, data loss, users can't use
+- 🟠 **High**: Major feature broken, frequent annoyance
+- 🟡 **Medium**: Some users affected, workaround exists
+- 🟢 **Low**: Minor cosmetic or rare edge case
+
+### Effort (Time to Fix)
+- **Easy**: < 30 min (small tweak, copy change)
+- **Medium**: 1-2 hours (moderate feature work)
+- **Hard**: 4+ hours (big feature, architecture change)
+
+### Priority Matrix
+```
+        Low Effort    High Effort
+High    DO FIRST     SCHEDULE
+Severity
+Low     QUICK WIN    BACKLOG
+```
+
+---
+
+## 🤖 Riles' Review (AI Assistant)
+
+Every session, Riles will:
+1. Check this file for new feedback
+2. Categorize and rank by severity + effort
+3. Present top 3 prioritized items
+4. Ask which to tackle
+
+---
+
+## 📈 Feedback Stats (Auto-updated)
+
+- Total bugs fixed: 3
+- Features added from feedback: 5
+- Open critical issues: 1
+
+*Last reviewed: 2026-02-20*
