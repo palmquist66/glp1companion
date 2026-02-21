@@ -34,6 +34,7 @@ Or edit this file directly.
 - (2026-02-21) Morning brief cron job runs but doesn't deliver to Discord | Bug | 🔴 High | Medium |
 - (2026-02-21) **AI Food Photo** - Identifies food but returns zeros for carbs/calories/protein | Bug | 🔴 High | Easy |
 - (2026-02-21) After AI food photo analysis, no clear way to add another photo | UX | 🟡 Medium | Easy |
+- (2026-02-21) **Settings** - Add light/dark mode toggle per user preference | Feature | 🟢 Low | Medium |
 
 ---
 
