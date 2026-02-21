@@ -41,7 +41,7 @@
 
 | Priority | Task | Due | Notes |
 |----------|------|-----|-------|
-| 🟡 P1 | **Apple Health Sync** | Week 3 | Auto-import glucose, weight from iPhone |
+| 🟡 P1 | **Google Fit Sync** | Week 3 | ✅ Done | OAuth integration, imports weight data |
 | 🟡 P1 | **Google Fit Sync** | Week 3 | Auto-import activity, weight from Android |
 | 🟡 P1 | **Bluetooth Device Sync** | Week 3 | Connect to glucose monitors, smart scales |
 | 🟡 P1 | **Voice Logging** | Week 4 | "Hey GLP1, log my glucose 120" |
