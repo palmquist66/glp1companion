@@ -43,7 +43,9 @@
 | Priority | Task | Due | Notes |
 |----------|------|-----|-------|
 | 🟡 P1 | **Google Fit Sync** | Week 3 | ✅ Done | OAuth integration, imports weight data |
-| 🟡 P1 | **Google Fit Sync** | Week 3 | Auto-import activity, weight from Android |
+| 🟡 P1 | **Dexcom CSV Import** | Week 3 | Todo | Import glucose data from Dexcom Clarity export |
+| 🟡 P1 | **Dexcom API Application** | Future | Research | Apply for direct Dexcom API (game changer!) |
+| 🟡 P1 | **Nightscout Sync** | Future | Research | Sync via Nightscout API (backup option) |
 | 🟡 P1 | **Bluetooth Device Sync** | Week 3 | Connect to glucose monitors, smart scales |
 | 🟡 P1 | **Voice Logging** | Week 4 | "Hey GLP1, log my glucose 120" |
 | 🟡 P1 | **Photo Food Logging** | Week 4 | Snap a pic, AI logs carbs |
