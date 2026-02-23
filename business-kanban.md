@@ -3,8 +3,12 @@
 ## Columns
 - 🎯 **Interests** (James' Focus Areas)
 - 🔍 **Research** (Starks)
+- 📋 **Ranked** (Riles ranks - cost, size, difficulty)
+- ✅ **Approved** (James approves)
 - 🔨 **Build** (Oakley)
-- 🚀 **Launched**
+- 👀 **Review** (Riles reviews code)
+- 👍 **James Review** (James tests locally)
+- 🚀 **Production** (Push to live)
 - 💰 **Revenue**
 
 ---
@@ -22,21 +26,43 @@
 
 ## 🔍 Research (Starks)
 
-*Research tasks go here*
+*Research tasks go here - Starks researches and sends ideas to Riles*
+
+---
+
+## 📋 Ranked (Riles)
+
+*Riles ranks ideas: cost, size, difficulty*
+
+---
+
+## ✅ Approved (James)
+
+*James gives approval to build*
 
 ---
 
 ## 🔨 Build (Oakley)
 
-*Projects being built go here*
+*Oakley builds the project*
 
 ---
 
-## 🚀 Launched
+## 👀 Review (Riles)
 
-| Project | Status | Revenue |
-|---------|--------|---------|
-| GLP1Companion | Streamlit app live | - |
+*Riles reviews code, makes improvements*
+
+---
+
+## 👍 James Review
+
+*James tests locally, approves for production*
+
+---
+
+## 🚀 Production
+
+*Push to live*
 
 ---
 
@@ -57,14 +83,17 @@
 
 ---
 
-## How It Works
+## Workflow (IMPORTANT)
 
-1. **Ideas** go in "Interests" → James picks what to focus on
-2. **Starks** researches the market gap → reports findings
-3. **Oakley** builds the MVP
-4. **Launch** → move to Launched
-5. **Monetize** → track in Revenue
+1. **Starks** researches → sends ideas to Riles
+2. **Riles** ranks by cost, size, difficulty → presents to James
+3. **James** gives approval to build
+4. **Oakley** builds
+5. **Riles** reviews code first → makes changes/improvements
+6. **James** reviews locally → gives go/no-go
+7. **Test locally** → confirm working
+8. **Push to production**
 
 ---
 
-*Last updated: 2026-02-22*
+*Last updated: 2026-02-23*

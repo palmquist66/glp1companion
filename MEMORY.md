@@ -20,6 +20,19 @@
 
 ---
 
+## Development Workflow (IMPORTANT)
+
+1. **Starks** researches → sends ideas to Riles
+2. **Riles** ranks by cost, size, difficulty → presents to James
+3. **James** gives approval to build
+4. **Oakley** builds
+5. **Riles** reviews code first → makes changes/improvements
+6. **James** reviews locally → gives go/no-go
+7. **Test locally** → confirm working
+8. **Push to production**
+
+---
+
 ## Cron Job Configuration
 
 **Lesson learned (Feb 18, 2026):** When setting up cron jobs with `delivery.mode: "announce"`, always deliver to a Discord **channel** (not DMs). Isolated cron sessions can post to channels but cannot send DMs.
