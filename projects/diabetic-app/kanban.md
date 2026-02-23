@@ -5,6 +5,7 @@
 - ⚙️ **In Progress** (AI / You)
 - ✅ **Done**
 - 🤖 **Future Bot Tasks**
+- 📱 **iOS App**
 
 ---
 
@@ -129,3 +130,17 @@
 3. Complete → Move to "Done" + date
 4. Automate → Move to "Future Bot Tasks"
 ```
+
+---
+
+## 📱 iOS Native App
+
+| Phase | Task | Timeline |
+|-------|------|----------|
+| Setup | Initialize Flutter project + Apple Developer | Week 1 |
+| Phase 1 | Auth + Basic UI + Navigation | Week 1-2 |
+| Phase 2 | Glucose, Weight, Meds, Dashboard | Week 2-3 |
+| Phase 3 | Apple Health (HealthKit) Integration | Week 3-4 |
+| Phase 4 | AI Food Photos + Chat + Notifications | Week 4 |
+
+**Total Estimate:** 4-6 weeks
