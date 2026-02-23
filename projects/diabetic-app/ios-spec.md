@@ -2,98 +2,58 @@
 
 ## Project Overview
 - **Project Name:** GLP1Companion iOS
-- **Type:** Native iOS Health Tracking App
-- **Goal:** Provide a native mobile experience for GLP-1 and diabetes tracking with Apple Health integration
+- **Type:** Native iOS App (Submit to App Store)
+- **Goal:** Native mobile experience for GLP-1 and diabetes tracking
 
 ---
 
-## Core Features
+## Core Features (MVP)
 
 ### 1. Authentication
 - Email/password login (sync with web app)
 - Biometric login (Face ID/Touch ID)
-- Secure token storage in Keychain
 
 ### 2. Health Tracking
-- **Glucose Logging** - Manual entry + from Apple Health
-- **Weight Logging** - Manual entry + from Apple Health
+- **Glucose Logging** - Manual entry
+- **Weight Logging** - Manual entry
 - **Food Logging** - Photo capture + manual entry
 - **Medication Tracking** - GLP-1 and other diabetes meds
-- **Exercise Tracking** - From Apple Health
 
-### 3. Apple Health Integration (Native!)
-- Read: Glucose, Weight, Steps, Sleep, Exercise
-- Write: Activity data
-- Background sync for automatic updates
+### 3. AI Features
+- Food photo analysis
+- Health insights
 
-### 4. AI Features
-- Food photo analysis (using Anthropic API)
-- Proactive health insights
-- Chat with AI assistant
-
-### 5. Dashboard
+### 4. Dashboard
 - Today's metrics at a glance
-- Trends and charts
 - Quick-add buttons
 
-### 6. Settings
+### 5. Settings
 - Profile management
-- Notification preferences
 - Dark/Light mode
-- Data export
 
 ---
 
 ## Technical Stack
 
-- **Framework:** Flutter (cross-platform, faster development)
-- **Backend:** Existing PostgreSQL API + Streamlit for AI
+- **Framework:** Flutter (for faster development + App Store compatibility)
+- **Backend:** Existing PostgreSQL API
 - **State Management:** Riverpod or Provider
-- **Local Storage:** SQLite for offline, synced to cloud
-- **Health Data:** HealthKit framework
+- **Local Storage:** SQLite for offline
 
 ---
 
-## Development Phases
-
-### Phase 1: Foundation (Week 1-2)
-- Project setup
-- Authentication flow
-- Basic UI structure
-- Navigation
-
-### Phase 2: Core Features (Week 2-3)
-- Glucose tracking
-- Weight tracking
-- Medication logging
-- Dashboard
-
-### Phase 3: Apple Health (Week 3-4)
-- HealthKit integration
-- Background sync
-- Data import
-
-### Phase 4: AI & Polish (Week 4)
-- Food photo AI
-- Chat feature
+## Future (Phase 2)
+- Apple Health integration
 - Push notifications
-- App Store prep
+- Offline support
 
 ---
 
-## Estimated Timeline: 4-6 weeks
+## Timeline
+- MVP: 3-4 weeks
+- App Store submission: +1-2 weeks
 
 ---
 
-## Cost Estimate
+## Cost
 - Apple Developer Account: $99/year
-- Hosting: $0-20/month (existing backend)
-- API calls: Pay-as-you-go for Anthropic
-
----
-
-## Next Steps
-1. Confirm Flutter as preferred framework
-2. Set up Apple Developer account
-3. Create Flutter project
-4. Start with Phase 1
