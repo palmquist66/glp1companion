@@ -37,6 +37,7 @@ Or edit this file directly.
 - (2026-02-21) **Settings** - Add light/dark mode toggle per user preference | Feature | 🟢 Low | Medium |
 - (2026-02-22) **Meds Tab** - Simplify UI further (keep simple for now) | UX | 🟢 Low | Backlog |
 - (2026-02-22) **iOS App** - Native iOS app with Apple Health sync | Feature | 🔴 High | Hard | In Planning |
+- (2026-02-22) Quick log buttons take up space, not useful | UX | 🟡 Medium | Easy |
 
 ---
 

@@ -133,16 +133,17 @@
 
 ---
 
-## 📱 iOS Native App (MVP)
+## 📱 iOS Native App
+
+**Start after Streamlit app is complete**
 
 | Phase | Task | Timeline |
 |-------|------|----------|
 | Setup | Flutter project + Apple Developer | Week 1 |
 | Phase 1 | Auth + Basic UI + Navigation | Week 1-2 |
 | Phase 2 | Glucose, Weight, Meds, Dashboard | Week 2-3 |
-| Phase 3 | AI Food Photos + Chat | Week 3-4 |
-| Phase 4 | App Store Prep + Submit | Week 4-5 |
+| Phase 3 | Apple Health Integration | Week 3-4 |
+| Phase 4 | AI Food Photos + Chat | Week 4 |
+| Phase 5 | App Store Prep + Submit | Week 5 |
 
-**Note:** Apple Health sync in Phase 2 (future)
-
-**Total Estimate:** 4-5 weeks to App Store
+**Total Estimate:** 5-6 weeks to App Store
