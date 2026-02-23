@@ -1,5 +1,25 @@
 # MEMORY.md - Long-Term Notes
 
+## Team Structure (Feb 22, 2026)
+
+**AI Automation Business:**
+- **COO** - Me (Riles) - orchestrate and coordinate
+- **Starks** - Research agent (subagent) - research market gaps
+- **Oakley** - Build agent (subagent) - build features and projects
+
+**James' Interests for Projects:**
+1. 🏈 Sports - Fantasy sports AI, injury predictions
+2. 🏥 Health/Diabetes - GLP-1 tracking (GLP1Companion)
+3. 🍔 Food - Nutrition tracking, recipe AI
+4. 💻 Tech - Automation tools
+
+**Current Projects:**
+- GLP1Companion - Diabetes/GLP-1 tracking web app
+
+**Revenue Goal:** $300k/year passive income
+
+---
+
 ## Cron Job Configuration
 
 **Lesson learned (Feb 18, 2026):** When setting up cron jobs with `delivery.mode: "announce"`, always deliver to a Discord **channel** (not DMs). Isolated cron sessions can post to channels but cannot send DMs.

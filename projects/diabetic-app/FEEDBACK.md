@@ -38,6 +38,7 @@ Or edit this file directly.
 - (2026-02-22) **Meds Tab** - Simplify UI further (keep simple for now) | UX | 🟢 Low | Backlog |
 - (2026-02-22) **iOS App** - Native iOS app with Apple Health sync | Feature | 🔴 High | Hard | In Planning |
 - (2026-02-22) Quick log buttons take up space, not useful | UX | 🟡 Medium | Easy |
+- (2026-02-22) **Voice Logging** - Log glucose/weight/food/meds via voice | Feature | 🟡 Medium | Medium |
 
 ---
 
