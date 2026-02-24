@@ -15,6 +15,7 @@
 
 | Priority | Task | Due | Notes |
 |----------|------|-----|-------|
+| 🔴 P0 | **Research: SNAQ app differentiation** | Todo | Found SNAQ on App Store - similar food/glucose tracking. How can we use AI + all our data to provide GLP-1 specific value? |
 | 🔴 P0 | Initialize Streamlit project | Week 2 | ✅ Done | `app/app.py` |
 | 🔴 P0 | Set up SQLite database | Week 2 | ✅ Done | Implemented in app.py |
 | 🔴 P0 | Build user auth (sign up/login) | Week 2 | ✅ Done | Implemented in app.py |
@@ -34,7 +35,7 @@
 | 🟡 P1 | Add GLP-1 medication tracker | Week 3 | ✅ Done | Implemented in app.py |
 | 🟡 P1 | Add side effects log | Week 3 | ✅ Done | Implemented in app.py |
 | 🟡 P1 | Add food logging (basic) | Week 3 | ✅ Done | Implemented in app.py |
-| 🟡 P1 | Set up Stripe account | Week 3 | Todo | For payments |
+| 🟡 P1 | Set up Stripe account | Week 3 | ✅ Done | Link already in app |
 | 🟡 P1 | Add AI Chat Interface | Week 3 | ✅ Done | Oakley built, deployed |
 | 🟡 P1 | Add Proactive Insights | Week 3 | ✅ Done | Glucose alerts, weight trends, med reminders, side effect patterns, weekly summary |
 
@@ -43,11 +44,11 @@
 | Priority | Task | Due | Notes |
 |----------|------|-----|-------|
 | 🟡 P1 | **Google Fit Sync** | Week 3 | ✅ Done | OAuth integration, imports weight data |
-| 🟡 P1 | **Dexcom CSV Import** | Week 3 | Todo | Import glucose data from Dexcom Clarity export |
+| 🟡 P1 | **Dexcom CSV Import** | Week 3 | ✅ Done | Tested and working |
 | 🟡 P1 | **Dexcom API Application** | Future | Research | Apply for direct Dexcom API (game changer!) |
 | 🟡 P1 | **Nightscout Sync** | Future | Research | Sync via Nightscout API (backup option) |
-| 🟡 P1 | **Bluetooth Device Sync** | Week 3 | Connect to glucose monitors, smart scales |
-| 🟡 P1 | **Voice Logging** | Week 4 | "Hey GLP1, log my glucose 120" |
+| 🟡 P1 | **Bluetooth Device Sync** | Week 3 | ⏸️ Skipped | Not needed - Google Fit covers weight, manual entry is easy |
+| 🟡 P1 | **Voice Food Logging + Recipe Nutrition AI** | Week 4 | ✅ Done | Voice log → AI finds nutrition, recipe calculator |
 | 🟡 P1 | **Photo Food Logging** | Week 4 | Snap a pic, AI logs carbs |
 
 ### 🟢 P2 - Week 4: Polish + Launch
@@ -98,8 +99,10 @@
 | Food logging | 2026-02-18 | Implemented in app.py |
 | GLP-1 medication list | 2026-02-17 | `glp1-medications.md` |
 | Rename app to GLP1Companion | 2026-02-18 | Oakley built, deployed |
-| Add AI Chat Interface | 2026-02-18 | deployed |
- Oakley built,| Deploy to Streamlit Cloud | 2026-02-18 | share.streamlit.io | (Automate Later)
+| Add AI Chat Interface | 2026-02-18 | deployed
+| Deploy to Streamlit Cloud | 2026-02-18 | share.streamlit.io | (Automate Later)
+| Dexcom CSV Import | 2026-02-24 | Tested and working |
+| Stripe payments | 2026-02-24 | Link in app |
 
 | Task | Bot Solution |
 |------|--------------|
