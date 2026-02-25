@@ -15,7 +15,7 @@
 
 | Priority | Task | Due | Notes |
 |----------|------|-----|-------|
-| 🔴 P0 | **Research: SNAQ app differentiation** | Todo | Found SNAQ on App Store - similar food/glucose tracking. How can we use AI + all our data to provide GLP-1 specific value? |
+| 🔴 P0 | **Research: SNAQ app differentiation** | ✅ Done | SNAQ = diabetes-focused food tracking. Our edge: GLP-1 specific (medication tracking, side effects, weight, meal planning). No direct GLP-1 competitor exists. |
 | 🔴 P0 | Initialize Streamlit project | Week 2 | ✅ Done | `app/app.py` |
 | 🔴 P0 | Set up SQLite database | Week 2 | ✅ Done | Implemented in app.py |
 | 🔴 P0 | Build user auth (sign up/login) | Week 2 | ✅ Done | Implemented in app.py |
@@ -55,7 +55,7 @@
 
 | Priority | Task | Due | Notes |
 |----------|------|-----|-------|
-| 🟢 P2 | Add insights engine (basic) | Week 4 | Todo | |
+| 🟢 P2 | Add insights engine (basic) | Week 4 | ✅ Done | Now includes Deep AI Insights agent |
 | 🟢 P2 | Add PDF export | Week 4 | Todo | For doctor visits |
 | 🟢 P2 | Build landing page | Week 4 | Todo | |
 | 🟢 P2 | Launch on Product Hunt | Week 4 | Todo | |

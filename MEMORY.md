@@ -1,22 +1,16 @@
 # MEMORY.md - Long-Term Notes
 
-## Team Structure (Feb 22, 2026)
+## Team Structure (Feb 24, 2026)
 
 **AI Automation Business:**
-- **COO** - Me (Riles) - orchestrate and coordinate
-- **Starks** - Research agent (subagent) - research market gaps
-- **Oakley** - Build agent (subagent) - build features and projects
+- **Riles** (me) - orchestrator, coordinates everything
+- **Starks** - Research agent - finds market gaps, opportunities
+- **Oakley** - Build agent - builds features and projects
+- **Mason** - Test/Validation agent - runs tests, validates output, generates screenshots
+- **Patrick** - Marketing agent (future) - handles releases, announcements
 
-**James' Interests for Projects:**
-1. 🏈 Sports - Fantasy sports AI, injury predictions
-2. 🏥 Health/Diabetes - GLP-1 tracking (GLP1Companion)
-3. 🍔 Food - Nutrition tracking, recipe AI
-4. 💻 Tech - Automation tools
-
-**Current Projects:**
-- GLP1Companion - Diabetes/GLP-1 tracking web app
-
-**Revenue Goal:** $300k/year passive income
+**Future agents to consider:**
+- **Patrick** (marketing) - releases, social posts, customer comms
 
 ---
 
@@ -26,10 +20,45 @@
 2. **Riles** ranks by cost, size, difficulty → presents to James
 3. **James** gives approval to build
 4. **Oakley** builds
-5. **Riles** reviews code first → makes changes/improvements
-6. **James** reviews locally → gives go/no-go
-7. **Test locally** → confirm working
-8. **Push to production**
+5. **Mason** tests/validates → runs tests, checks output, generates screenshots
+6. **Riles** reviews code first → makes changes/improvements
+7. **James** reviews locally → gives go/no-go
+8. **Test locally** → confirm working
+9. **Push to production**
+
+### Task Registry (.clawdbot/active-tasks.json)
+
+Each agent task is tracked in a JSON registry for visibility and auto-monitoring:
+
+```json
+{
+  "id": "feat-custom-templates",
+  "agent": "oakley",
+  "description": "Custom email templates feature",
+  "branch": "feat/custom-templates",
+  "status": "running|done|failed",
+  "startedAt": 1740268800000,
+  "completedAt": null,
+  "pr": null,
+  "notifyOnComplete": true
+}
+```
+
+**Definition of Done:**
+- PR created
+- Branch synced to main (no merge conflicts)
+- CI passing (lint, types, unit tests)
+- Mason (tester) validation passed
+- Screenshots included (if UI changes)
+
+### Cron Monitoring
+
+A cron job runs every 10 minutes to:
+- Check if agent sessions are alive
+- Check for open PRs on tracked branches
+- Check CI status
+- Auto-respawn failed agents (max 3 attempts)
+- Only alert if human attention needed
 
 ---
 

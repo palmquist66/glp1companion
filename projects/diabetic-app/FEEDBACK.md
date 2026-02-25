@@ -16,8 +16,7 @@ Or edit this file directly.
 ## 📋 Incoming Feedback (Unreviewed)
 
 ### New This Session
-- [ ] (2026-02-20) Mobile sidebar covers almost whole screen → Made narrower & auto-close
-- [ ] (2026-02-20) Login not persisting - users must recreate account
+- [ ] (2026-02-25) **Mobile Charts** - Charts too easy to accidentally click, zooms/moves on touch. Should be static on mobile | UX | 🟡 Medium | Easy |
 
 ### From Users (To Be Triaged)
 *Add user feedback here when reported*
