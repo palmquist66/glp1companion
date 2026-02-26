@@ -14,7 +14,7 @@ import hashlib
 import re
 import anthropic
 import base64
-from pdf_export import generate_health_report
+from app.pdf_export import generate_health_report
 
 # Medication lists for dropdowns
 GLP1_MEDICATIONS = [
