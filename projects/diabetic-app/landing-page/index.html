@@ -328,11 +328,9 @@
         <div class="max-w-2xl mx-auto text-center">
             <h3 class="text-2xl font-bold mb-3">Get Updates & Special Offers</h3>
             <p class="text-gray-400 mb-6">Join our waitlist to receive updates on new features, tips, and exclusive offers.</p>
-            <!-- Google Sheets waitlist form -->
-            <!-- Submits directly to Google Apps Script (no JS needed) -->
-            <form class="waitlist-form flex flex-col sm:flex-row gap-3 max-w-md mx-auto" action="https://script.google.com/macros/s/AKfycbyHPIx79id2LXcjKlHWbTia1EyRkSqCGRufuP_K0tBl1u5yXbvTEIFIJIY1yzK73wSHiQ/exec" method="POST" target="_blank">
+            <!-- Google Apps Script Form -->
+            <form class="waitlist-form flex flex-col sm:flex-row gap-3 max-w-md mx-auto" action="https://script.google.com/macros/s/AKfycbzO67_dbIhhYlJzZxyPofZOCLBi8aml32UKxrjh-LguQ7TSkfagzA9R6C38XmjWYw4Rwg/exec" method="POST">
                 <input type="hidden" name="source" value="waitlist">
-                <input type="hidden" name="referer" id="waitlist-referer">
                 <input 
                     type="email" 
                     placeholder="Enter your email" 
@@ -347,7 +345,7 @@
                     Join
                 </button>
             </form>
-            <script>document.getElementById('waitlist-referer').value = window.location.href;</script>
+            <p class="text-gray-500 text-sm mt-3">✓ Saves to Google Sheet with timestamp</p>
         </div>
     </section>
 
@@ -479,13 +477,11 @@
             <h2 class="text-3xl sm:text-4xl font-bold mb-4">Stay in the <span class="text-[#30d158]">Loop</span></h2>
             <p class="text-gray-400 text-lg mb-8">Get the latest updates, tips, and exclusive offers delivered to your inbox.</p>
             
-            <!-- Email Form - Google Sheets (direct POST, no JS) -->
-            <form id="email-form" action="https://script.google.com/macros/s/AKfycbyHPIx79id2LXcjKlHWbTia1EyRkSqCGRufuP_K0tBl1u5yXbvTEIFIJIY1yzK73wSHiQ/exec" method="POST" target="_blank" class="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
+            <!-- Google Apps Script Form -->
+            <form class="email-form flex flex-col sm:flex-row gap-4 max-w-lg mx-auto" action="https://script.google.com/macros/s/AKfycbzO67_dbIhhYlJzZxyPofZOCLBi8aml32UKxrjh-LguQ7TSkfagzA9R6C38XmjWYw4Rwg/exec" method="POST">
                 <input type="hidden" name="source" value="signup">
-                <input type="hidden" name="referer" id="signup-referer">
                 <input 
                     type="email" 
-                    id="email-input"
                     name="email"
                     placeholder="Enter your email address" 
                     required
@@ -498,9 +494,8 @@
                     Join Waitlist
                 </button>
             </form>
-            <script>document.getElementById('signup-referer').value = window.location.href;</script>
             
-            <p class="text-gray-500 text-sm mt-4">We respect your privacy. Unsubscribe anytime.</p>
+            <p class="text-gray-500 text-sm mt-6">✓ Saves to Google Sheet with timestamp • We respect your privacy</p>
         </div>
     </section>
 
@@ -552,26 +547,6 @@
             content.classList.toggle('hidden');
             icon.classList.toggle('rotate-180');
         }
-
-        // Simple form submit handlers - forms now POST directly to Google Script
-        // Track signups in GA4 if available
-        document.getElementById('email-form').addEventListener('submit', function() {
-            const email = document.getElementById('email-input').value;
-            console.log('Email submitted:', email);
-            if (typeof gtag !== 'undefined') {
-                gtag('event', 'sign_up', { 'method': 'google_sheets' });
-            }
-        });
-
-        document.querySelectorAll('.waitlist-form').forEach(form => {
-            form.addEventListener('submit', function() {
-                const input = this.querySelector('input[type="email"]');
-                console.log('Waitlist email submitted:', input.value);
-                if (typeof gtag !== 'undefined') {
-                    gtag('event', 'sign_up', { 'method': 'google_sheets_waitlist' });
-                }
-            });
-        });
     </script>
 </body>
 </html>
