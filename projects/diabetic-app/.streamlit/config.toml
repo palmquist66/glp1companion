@@ -1,2 +1,1 @@
-[server]
-mainModule = "app/app"
+# Streamlit Cloud config - app.py is now in root
