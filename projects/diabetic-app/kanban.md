@@ -56,9 +56,9 @@
 | Priority | Task | Due | Notes |
 |----------|------|-----|-------|
 | 🟢 P2 | Add insights engine (basic) | Week 4 | ✅ Done | Now includes Deep AI Insights agent |
-| 🟢 P2 | Add PDF export | Week 4 | Todo | For doctor visits |
-| 🟢 P2 | Build landing page | Week 4 | Todo | |
-| 🟢 P2 | Launch on Product Hunt | Week 4 | Todo | |
+| 🟢 P2 | Add PDF export | Week 4 | ✅ Done | For doctor visits |
+| 🟢 P2 | Build landing page | Week 4 | ✅ Done | Apple Fitness style, deployed to Vercel |
+| 🟢 P2 | Launch on Product Hunt | Week 4 | 📅 Tomorrow (Feb 26) 11am CT | Materials ready |
 | 🟢 P2 | Post to Reddit/Facebook/Twitter | Week 4 | Todo | |
 | 🟢 P2 | Start waitlist → first sales | Week 4 | Todo | |
 

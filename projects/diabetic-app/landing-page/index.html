@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLP1Companion - Your AI-Powered GLP-1 Tracking Assistant</title>
+    <meta name="description" content="Track your GLP-1 medication journey with AI-powered insights. Monitor glucose, weight, side effects, and generate reports for your doctor.">
+    
+    <!-- Google Analytics 4 -->
+    <!-- TODO: Replace G-XXXXXXXXXX with your actual GA4 Measurement ID -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XXXXXXXXXX');
+    </script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Apple Fitness style colors
+                        app: {
+                            black: '#000000',
+                            dark: '#0a0a0a',
+                            card: '#1c1c1e',
+                            border: '#2c2c2e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        .gradient-text {
+            background: linear-gradient(135deg, #30d158 0%, #34e0b9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-gradient {
+            background: linear-gradient(180deg, #000000 0%, #0a0a0a 100%);
+        }
+        /* Primary CTA - Red */
+        .btn-primary {
+            background: linear-gradient(135deg, #ff375f 0%, #ff6b6b 100%);
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        /* Success/Positive - Green */
+        .accent-green {
+            color: #30d158;
+        }
+        .bg-accent-green {
+            background-color: #30d158;
+        }
+        .bg-accent-green-soft {
+            background-color: rgba(48, 209, 88, 0.15);
+        }
+        /* Secondary - Blue */
+        .btn-secondary {
+            background: linear-gradient(135deg, #0a84ff 0%, #5ac8fa 100%);
+        }
+        /* Animated scroll indicator */
+        .scroll-indicator {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        .scroll-indicator-2 {
+            animation: bounce 2s infinite;
+            animation-delay: 0.2s;
+        }
+    </style>
+</head>
+<body class="bg-black text-white font-sans antialiased">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full bg-black/90 backdrop-blur-md z-50 border-b border-[#2c2c2e]">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold">
+                        <span class="text-[#30d158]">GLP1</span><span class="text-white">Companion</span>
+                    </span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#features" class="text-gray-400 hover:text-white transition">Features</a>
+                    <a href="#how-it-works" class="text-gray-400 hover:text-white transition">How It Works</a>
+                    <a href="#pricing" class="text-gray-400 hover:text-white transition">Pricing</a>
+                    <a href="#faq" class="text-gray-400 hover:text-white transition">FAQ</a>
+                </div>
+                <div>
+                    <a href="https://glp1companion-ybxqlfaewlaev55yeeentt.streamlit.app" target="_blank" class="btn-primary text-white px-5 py-2 rounded-lg font-medium transition">
+                        Open App
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient pt-32 pb-20 px-4">
+        <div class="max-w-6xl mx-auto text-center">
+            <div class="inline-flex items-center bg-[#1c1c1e] border border-[#2c2c2e] rounded-full px-4 py-2 mb-8">
+                <span class="w-2 h-2 bg-[#30d158] rounded-full mr-2 animate-pulse"></span>
+                <span class="text-gray-300 text-sm">Now with AI-Powered Insights</span>
+            </div>
+            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+                Your AI-Powered <br>
+                <span class="gradient-text">GLP-1 Companion</span>
+            </h1>
+            <p class="text-xl text-gray-400 max-w-2xl mx-auto mb-10">
+                Track your GLP-1 medication journey with intelligent insights. Monitor glucose, weight, side effects, and get AI-powered recommendations—all in one place.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+                <a href="https://glp1companion-ybxqlfaewlaev55yeeentt.streamlit.app" target="_blank" class="btn-primary text-white px-8 py-4 rounded-lg font-semibold text-lg transition transform hover:scale-105">
+                    Open App
+                </a>
+                <a href="#waitlist" class="btn-secondary text-white px-8 py-4 rounded-lg font-semibold text-lg transition">
+                    Join Waitlist
+                </a>
+            </div>
+            <!-- Scroll encouragement -->
+            <div class="mb-8">
+                <a href="#features" class="inline-flex items-center text-gray-400 hover:text-white transition text-sm font-medium group">
+                    <span>See Features</span>
+                    <svg class="w-4 h-4 ml-2 group-hover:translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </a>
+            </div>
+            <!-- Animated scroll indicator -->
+            <div class="flex justify-center mb-4">
+                <div class="flex flex-col items-center text-gray-600">
+                    <svg class="w-6 h-6 scroll-indicator" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="text-sm text-gray-500">
+                Free to start • No credit card required
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 px-4 bg-black">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold mb-4">Everything You Need for Your <span class="text-[#30d158]">GLP-1 Journey</span></h2>
+                <p class="text-gray-400 text-lg max-w-2xl mx-auto">Comprehensive tracking tools designed specifically for GLP-1 medication users.</p>
+            </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6 hover:border-white transition">
+                    <div class="w-12 h-12 bg-[#1a2a2e] rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#30d158]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Glucose Tracking</h3>
+                    <p class="text-gray-400">Log your blood glucose levels and visualize trends over time with easy-to-read charts.</p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6 hover:border-white transition">
+                    <div class="w-12 h-12 bg-[#1a2a2e] rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#30d158]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Weight Tracking</h3>
+                    <p class="text-gray-400">Track your weight journey with progress charts and goal setting features.</p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6 hover:border-white transition">
+                    <div class="w-12 h-12 bg-[#1a2a2e] rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#30d158]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Medication Reminders</h3>
+                    <p class="text-gray-400">Never miss a dose with customizable reminders for your GLP-1 injection schedule.</p>
+                </div>
+                <!-- Feature 4 -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6 hover:border-white transition">
+                    <div class="w-12 h-12 bg-[#0a1a2e] rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#0a84ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">AI Insights</h3>
+                    <p class="text-gray-400">Get personalized AI-powered insights about your patterns, side effects, and recommendations.</p>
+                </div>
+                <!-- Feature 5 -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6 hover:border-white transition">
+                    <div class="w-12 h-12 bg-[#2e1a1a] rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#ff375f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Side Effect Logging</h3>
+                    <p class="text-gray-400">Track and analyze side effects to identify patterns and share with your healthcare provider.</p>
+                </div>
+                <!-- Feature 6 -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6 hover:border-white transition">
+                    <div class="w-12 h-12 bg-[#0a1a2e] rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#0a84ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Food Photo Logging</h3>
+                    <p class="text-gray-400">Snap photos of your meals to track eating patterns and correlate with glucose levels.</p>
+                </div>
+                <!-- Feature 7 -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6 hover:border-white transition">
+                    <div class="w-12 h-12 bg-[#1a2a2e] rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#30d158]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">PDF Export for Doctors</h3>
+                    <p class="text-gray-400">Generate comprehensive PDF reports to share with your healthcare provider.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="py-20 px-4 bg-[#0a0a0a]">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold mb-4">How It <span class="text-[#30d158]">Works</span></h2>
+                <p class="text-gray-400 text-lg">Get started in three simple steps</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Step 1 -->
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-[#0a84ff] rounded-full flex items-center justify-center mx-auto mb-6">
+                        <span class="text-2xl font-bold text-white">1</span>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Create Your Profile</h3>
+                    <p class="text-gray-400">Sign up and set up your GLP-1 medication details, goals, and preferences.</p>
+                </div>
+                <!-- Step 2 -->
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-[#0a84ff] rounded-full flex items-center justify-center mx-auto mb-6">
+                        <span class="text-2xl font-bold text-white">2</span>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Log Your Data</h3>
+                    <p class="text-gray-400">Track glucose, weight, meals, side effects, and medication doses daily.</p>
+                </div>
+                <!-- Step 3 -->
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-[#ff375f] rounded-full flex items-center justify-center mx-auto mb-6">
+                        <span class="text-2xl font-bold text-white">3</span>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Get AI Insights</h3>
+                    <p class="text-gray-400">Receive personalized insights and generate reports to share with your doctor.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="py-20 px-4 bg-black">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold mb-4">What Users <span class="text-[#30d158]">Say</span></h2>
+                <p class="text-gray-400 text-lg">Join thousands tracking their GLP-1 journey</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-[#30d158]/20 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-[#30d158] font-semibold">JD</span>
+                        </div>
+                        <div>
+                            <div class="font-semibold">John D.</div>
+                            <div class="text-sm text-gray-500">Ozempic User</div>
+                        </div>
+                    </div>
+                    <p class="text-gray-400">"This app has been a game-changer for my GLP-1 journey. The PDF export feature saved me at my last doctor visit."</p>
+                </div>
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-[#0a84ff]/20 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-[#0a84ff] font-semibold">SM</span>
+                        </div>
+                        <div>
+                            <div class="font-semibold">Sarah M.</div>
+                            <div class="text-sm text-gray-500">Mounjaro User</div>
+                        </div>
+                    </div>
+                    <p class="text-gray-400">"The AI insights helped me understand my glucose patterns. I've never felt more in control of my health."</p>
+                </div>
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-[#ff375f]/20 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-[#ff375f] font-semibold">RK</span>
+                        </div>
+                        <div>
+                            <div class="font-semibold">Robert K.</div>
+                            <div class="text-sm text-gray-500">Wegovy User</div>
+                        </div>
+                    </div>
+                    <p class="text-gray-400">"Simple, intuitive, and actually useful. The medication reminders have been a lifesaver."</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Waitlist CTA Section -->
+    <section id="waitlist" class="py-16 px-4 bg-[#0a0a0a]">
+        <div class="max-w-2xl mx-auto text-center">
+            <h3 class="text-2xl font-bold mb-3">Get Updates & Special Offers</h3>
+            <p class="text-gray-400 mb-6">Join our waitlist to receive updates on new features, tips, and exclusive offers.</p>
+            <!-- Google Sheets waitlist form -->
+            <!-- Submits directly to Google Apps Script (no JS needed) -->
+            <form class="waitlist-form flex flex-col sm:flex-row gap-3 max-w-md mx-auto" action="https://script.google.com/macros/s/AKfycbyHPIx79id2LXcjKlHWbTia1EyRkSqCGRufuP_K0tBl1u5yXbvTEIFIJIY1yzK73wSHiQ/exec" method="POST" target="_blank">
+                <input type="hidden" name="source" value="waitlist">
+                <input type="hidden" name="referer" id="waitlist-referer">
+                <input 
+                    type="email" 
+                    placeholder="Enter your email" 
+                    name="email"
+                    required
+                    class="flex-1 bg-[#1c1c1e] border border-[#2c2c2e] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#0a84ff] transition"
+                >
+                <button 
+                    type="submit"
+                    class="bg-[#0a84ff] hover:bg-[#409cff] text-white px-6 py-3 rounded-lg font-semibold transition"
+                >
+                    Join
+                </button>
+            </form>
+            <script>document.getElementById('waitlist-referer').value = window.location.href;</script>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-20 px-4 bg-[#0a0a0a]">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold mb-4">Simple, Transparent <span class="text-[#30d158]">Pricing</span></h2>
+                <p class="text-gray-400 text-lg">Start free, upgrade when you're ready</p>
+            </div>
+            <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <!-- Free Tier -->
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-2xl p-8">
+                    <h3 class="text-2xl font-bold mb-2">Free</h3>
+                    <div class="text-4xl font-bold mb-6">$0<span class="text-lg text-gray-400 font-normal">/month</span></div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Glucose tracking
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Weight tracking
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Medication reminders
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Side effect logging
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Food photo logging
+                        </li>
+                    </ul>
+                    <a href="https://glp1companion-ybxqlfaewlaev55yeeentt.streamlit.app" target="_blank" class="block text-center btn-primary text-white py-3 rounded-lg font-semibold transition">
+                        Start Free
+                    </a>
+                </div>
+                <!-- Pro Tier -->
+                <div class="bg-gradient-to-b from-[#1c1c1e] to-[#0a0a0a] border border-[#0a84ff] rounded-2xl p-8 relative">
+                    <div class="absolute top-0 right-0 bg-[#0a84ff] text-white text-sm font-semibold px-3 py-1 rounded-bl-lg rounded-tr-lg">
+                        POPULAR
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2">Pro</h3>
+                    <div class="text-4xl font-bold mb-6">$12.99<span class="text-lg text-gray-400 font-normal">/month</span></div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Everything in Free
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            AI-powered insights
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            PDF export for doctors
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Advanced analytics
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <svg class="w-5 h-5 text-[#30d158] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Priority support
+                        </li>
+                    </ul>
+                    <a href="#signup" class="block text-center bg-[#0a84ff] hover:bg-[#409cff] text-white py-3 rounded-lg font-semibold transition">
+                        Upgrade to Pro
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="py-20 px-4 bg-black">
+        <div class="max-w-3xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold mb-4">Frequently Asked <span class="text-[#30d158]">Questions</span></h2>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl overflow-hidden">
+                    <button class="faq-toggle w-full text-left px-6 py-4 flex justify-between items-center" onclick="toggleFaq(this)">
+                        <span class="font-semibold">Is my data secure?</span>
+                        <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-4 text-gray-400">
+                        Yes! We take data security seriously. Your health data is encrypted and stored securely. We never share your personal data with third parties.
+                    </div>
+                </div>
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl overflow-hidden">
+                    <button class="faq-toggle w-full text-left px-6 py-4 flex justify-between items-center" onclick="toggleFaq(this)">
+                        <span class="font-semibold">Which GLP-1 medications does this support?</span>
+                        <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-4 text-gray-400">
+                        We support all major GLP-1 medications including Ozempic, Wegovy, Mounjaro, Zepbound, Saxenda, and Victoza.
+                    </div>
+                </div>
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl overflow-hidden">
+                    <button class="faq-toggle w-full text-left px-6 py-4 flex justify-between items-center" onclick="toggleFaq(this)">
+                        <span class="font-semibold">Can I export my data to share with my doctor?</span>
+                        <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-4 text-gray-400">
+                        Absolutely! Pro users can generate comprehensive PDF reports with all their tracking data to share with healthcare providers.
+                    </div>
+                </div>
+                <div class="bg-[#1c1c1e] border border-[#2c2c2e] rounded-xl overflow-hidden">
+                    <button class="faq-toggle w-full text-left px-6 py-4 flex justify-between items-center" onclick="toggleFaq(this)">
+                        <span class="font-semibold">Is there a free trial for Pro?</span>
+                        <svg class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content hidden px-6 pb-4 text-gray-400">
+                        Yes! We offer a 14-day free trial for Pro features. No credit card required to start.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Email Signup Section -->
+    <section id="signup" class="py-20 px-4 bg-gradient-to-b from-black to-[#0a0a0a]">
+        <div class="max-w-2xl mx-auto text-center">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-4">Stay in the <span class="text-[#30d158]">Loop</span></h2>
+            <p class="text-gray-400 text-lg mb-8">Get the latest updates, tips, and exclusive offers delivered to your inbox.</p>
+            
+            <!-- Email Form - Google Sheets (direct POST, no JS) -->
+            <form id="email-form" action="https://script.google.com/macros/s/AKfycbyHPIx79id2LXcjKlHWbTia1EyRkSqCGRufuP_K0tBl1u5yXbvTEIFIJIY1yzK73wSHiQ/exec" method="POST" target="_blank" class="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
+                <input type="hidden" name="source" value="signup">
+                <input type="hidden" name="referer" id="signup-referer">
+                <input 
+                    type="email" 
+                    id="email-input"
+                    name="email"
+                    placeholder="Enter your email address" 
+                    required
+                    class="flex-1 bg-[#1c1c1e] border border-[#2c2c2e] text-white px-5 py-4 rounded-lg focus:outline-none focus:border-[#0a84ff] transition"
+                >
+                <button 
+                    type="submit"
+                    class="btn-secondary text-white px-8 py-4 rounded-lg font-semibold transition"
+                >
+                    Join Waitlist
+                </button>
+            </form>
+            <script>document.getElementById('signup-referer').value = window.location.href;</script>
+            
+            <p class="text-gray-500 text-sm mt-4">We respect your privacy. Unsubscribe anytime.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-4 bg-black border-t border-[#2c2c2e]">
+        <div class="max-w-6xl mx-auto">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="text-2xl font-bold mb-4">
+                        <span class="text-[#30d158]">GLP1</span><span class="text-white">Companion</span>
+                    </div>
+                    <p class="text-gray-400 text-sm">Your AI-powered companion for GLP-1 medication tracking.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Product</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#features" class="hover:text-white transition">Features</a></li>
+                        <li><a href="#pricing" class="hover:text-white transition">Pricing</a></li>
+                        <li><a href="https://glp1companion-ybxqlfaewlaev55yeeentt.streamlit.app" target="_blank" class="hover:text-white transition">Open App</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Resources</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#faq" class="hover:text-white transition">FAQ</a></li>
+                        <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-white transition">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Contact</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li>support@glp1companion.io</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-[#2c2c2e] pt-8 text-center text-gray-500 text-sm">
+                © 2025 GLP1Companion. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // FAQ Toggle
+        function toggleFaq(button) {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('svg');
+            
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+
+        // Simple form submit handlers - forms now POST directly to Google Script
+        // Track signups in GA4 if available
+        document.getElementById('email-form').addEventListener('submit', function() {
+            const email = document.getElementById('email-input').value;
+            console.log('Email submitted:', email);
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'sign_up', { 'method': 'google_sheets' });
+            }
+        });
+
+        document.querySelectorAll('.waitlist-form').forEach(form => {
+            form.addEventListener('submit', function() {
+                const input = this.querySelector('input[type="email"]');
+                console.log('Waitlist email submitted:', input.value);
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'sign_up', { 'method': 'google_sheets_waitlist' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
