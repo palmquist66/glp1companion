@@ -329,7 +329,10 @@
             <h3 class="text-2xl font-bold mb-3">Get Updates & Special Offers</h3>
             <p class="text-gray-400 mb-6">Join our waitlist to receive updates on new features, tips, and exclusive offers.</p>
             <!-- Google Apps Script Form -->
-            <form class="waitlist-form flex flex-col sm:flex-row gap-3 max-w-md mx-auto" action="https://script.google.com/macros/s/AKfycbzO67_dbIhhYlJzZxyPofZOCLBi8aml32UKxrjh-LguQ7TSkfagzA9R6C38XmjWYw4Rwg/exec" method="POST">
+            <form class="waitlist-form flex flex-col sm:flex-row gap-3 max-w-md mx-auto" 
+                  action="https://script.google.com/macros/s/AKfycbzO67_dbIhhYlJzZxyPofZOCLBi8aml32UKxrjh-LguQ7TSkfagzA9R6C38XmjWYw4Rwg/exec" 
+                  method="POST"
+                  onsubmit="handleFormSubmit(event, 'waitlist-success')">
                 <input type="hidden" name="source" value="waitlist">
                 <input 
                     type="email" 
@@ -345,7 +348,10 @@
                     Join
                 </button>
             </form>
-            <p class="text-gray-500 text-sm mt-3">✓ Saves to Google Sheet with timestamp</p>
+            <!-- Success Message -->
+            <div id="waitlist-success" class="hidden mt-4 p-4 bg-[#30d158]/20 border border-[#30d158] rounded-lg">
+                <p class="text-[#30d158] font-semibold">✓ Thanks for joining! We'll be in touch soon.</p>
+            </div>
         </div>
     </section>
 
@@ -478,7 +484,10 @@
             <p class="text-gray-400 text-lg mb-8">Get the latest updates, tips, and exclusive offers delivered to your inbox.</p>
             
             <!-- Google Apps Script Form -->
-            <form class="email-form flex flex-col sm:flex-row gap-4 max-w-lg mx-auto" action="https://script.google.com/macros/s/AKfycbzO67_dbIhhYlJzZxyPofZOCLBi8aml32UKxrjh-LguQ7TSkfagzA9R6C38XmjWYw4Rwg/exec" method="POST">
+            <form class="email-form flex flex-col sm:flex-row gap-4 max-w-lg mx-auto" 
+                  action="https://script.google.com/macros/s/AKfycbzO67_dbIhhYlJzZxyPofZOCLBi8aml32UKxrjh-LguQ7TSkfagzA9R6C38XmjWYw4Rwg/exec" 
+                  method="POST"
+                  onsubmit="handleFormSubmit(event, 'signup-success')">
                 <input type="hidden" name="source" value="signup">
                 <input 
                     type="email" 
@@ -495,7 +504,12 @@
                 </button>
             </form>
             
-            <p class="text-gray-500 text-sm mt-6">✓ Saves to Google Sheet with timestamp • We respect your privacy</p>
+            <!-- Success Message -->
+            <div id="signup-success" class="hidden mt-6 p-4 bg-[#30d158]/20 border border-[#30d158] rounded-lg max-w-lg mx-auto">
+                <p class="text-[#30d158] font-semibold">✓ Thanks for joining! We'll be in touch soon.</p>
+            </div>
+            
+            <p class="text-gray-500 text-sm mt-6">We respect your privacy</p>
         </div>
     </section>
 
@@ -546,6 +560,38 @@
             
             content.classList.toggle('hidden');
             icon.classList.toggle('rotate-180');
+        }
+
+        // Form submission handler - prevents redirect, shows success message
+        async function handleFormSubmit(event, successMessageId) {
+            event.preventDefault();
+            const form = event.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            
+            // Show loading state
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+            
+            try {
+                // Submit form via fetch (no redirect)
+                const formData = new FormData(form);
+                await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    mode: 'no-cors' // no-crs allows the request to complete without CORS issues
+                });
+                
+                // Show success message
+                form.style.display = 'none';
+                document.getElementById(successMessageId).classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Form submission error:', error);
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                alert('There was an error. Please try again.');
+            }
         }
     </script>
 </body>
