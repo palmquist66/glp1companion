@@ -155,10 +155,33 @@ class SideEffect(Base):
     timestamp = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="side_effects")
 
+# Feature 1: Medication History - stores previous med+dose combinations for quick add
+class MedicationHistory(Base):
+    __tablename__ = "medication_history"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    medication = Column(String, nullable=False)
+    dosage = Column(String)
+    last_used = Column(DateTime, default=datetime.now)
+    use_count = Column(Integer, default=1)
+
+# Feature 2: Medication Reminders - stores reminder preferences for each med
+class MedicationReminder(Base):
+    __tablename__ = "medication_reminders"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    medication = Column(String, nullable=False)
+    dosage = Column(String)
+    reminder_day = Column(Integer)  # onday, 0=M6=Sunday
+    reminder_time = Column(String)  # Store as "HH:MM" format
+    is_active = Column(Integer, default=1)  # 1=active, 0=inactive
+    last_reminder_sent = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.now)
+
 # Create tables
 Base.metadata.create_all(engine)
 
-# Database migration - add missing columns
+# Database migration - add missing columns and tables
 try:
     from sqlalchemy import text
     with engine.connect() as conn:
@@ -167,6 +190,14 @@ try:
         conn.commit()
 except:
     pass  # Column might already exist
+
+# Create new tables if they don't exist (for Feature 1 & 2)
+from sqlalchemy import inspect
+inspector = inspect(engine)
+existing_tables = inspector.get_table_names()
+
+if "medication_history" not in existing_tables:
+    Base.metadata.create_all(engine)
 
 Session = sessionmaker(bind=engine)
 
@@ -954,7 +985,7 @@ PROTEIN: [number]"""
                     
                     # Use Claude to transcribe and extract nutrition
                     message = client.messages.create(
-                        model="claude-3-5-sonnet-20241022",
+                        model="claude-sonnet-4-20250514",
                         max_tokens=500,
                         messages=[
                             {
@@ -1142,7 +1173,7 @@ If they mention multiple items, list them all and estimate total nutrition."""
                     client = anthropic.Anthropic(api_key=api_key)
                     
                     message = client.messages.create(
-                        model="claude-3-5-sonnet-20241022",
+                        model="claude-sonnet-4-20250514",
                         max_tokens=500,
                         messages=[
                             {
@@ -1203,7 +1234,7 @@ If it's a nutrition label, extract all the information."""
                     client = anthropic.Anthropic(api_key=api_key)
                     
                     message = client.messages.create(
-                        model="claude-3-5-sonnet-20241022",
+                        model="claude-sonnet-4-20250514",
                         max_tokens=400,
                         messages=[
                             {
@@ -1265,7 +1296,7 @@ Example:
                         client = anthropic.Anthropic(api_key=api_key)
                         
                         message = client.messages.create(
-                            model="claude-3-5-sonnet-20241022",
+                            model="claude-sonnet-4-20250514",
                             max_tokens=400,
                             messages=[
                                 {
@@ -1470,8 +1501,261 @@ def medication_page():
     
     st.markdown("---")
     
-    # ============== LOG DOSE ==============
-    st.subheader("✅ Log Today's Dose")
+    # ============== FEATURE 1: QUICK ADD ==============
+    st.subheader("⚡ Quick Add")
+    
+    # Get user's medication history (previous med+dose combinations)
+    med_history = db.query(MedicationHistory).filter(
+        MedicationHistory.user_id == st.session_state.user_id
+    ).order_by(MedicationHistory.last_used.desc()).limit(10).all()
+    
+    # Also include user's current saved medications
+    quick_add_options = []
+    if user.glp1_medication:
+        quick_add_options.append({
+            "medication": user.glp1_medication,
+            "dosage": user.glp1_dosage,
+            "source": "Current GLP-1"
+        })
+    if user.other_diabetes_med:
+        quick_add_options.append({
+            "medication": user.other_diabetes_med,
+            "dosage": user.other_diabetes_med,
+            "source": "Current Diabetes Med"
+        })
+    
+    # Add from history
+    for h in med_history:
+        existing = any(o["medication"] == h.medication and o.get("dosage") == h.dosage for o in quick_add_options)
+        if not existing:
+            quick_add_options.append({
+                "medication": h.medication,
+                "dosage": h.dosage,
+                "source": f"Previous (used {h.use_count}x)"
+            })
+    
+    if quick_add_options:
+        # Create display options for the selectbox
+        display_options = ["➕ Add New Medication..."]
+        for opt in quick_add_options:
+            dose_str = f" - {opt['dosage']}" if opt.get('dosage') else ""
+            display_options.append(f"{opt['medication']}{dose_str} ({opt['source']})")
+        
+        # Quick add section
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            selected_quick = st.selectbox("Select from previous medications", display_options, key="quick_select")
+        with col2:
+            st.write("")  # spacer
+            st.write("")  # spacer
+            if st.button("✅ Quick Log", key="quick_log_btn"):
+                if selected_quick != "➕ Add New Medication...":
+                    # Parse the selected option
+                    selected_idx = display_options.index(selected_quick) - 1
+                    opt = quick_add_options[selected_idx]
+                    
+                    # Log the medication
+                    log = MedicationLog(
+                        user_id=st.session_state.user_id,
+                        medication=opt["medication"],
+                        dosage=opt.get("dosage"),
+                        taken=1
+                    )
+                    db.add(log)
+                    
+                    # Update or create history entry
+                    existing_hist = db.query(MedicationHistory).filter(
+                        MedicationHistory.user_id == st.session_state.user_id,
+                        MedicationHistory.medication == opt["medication"],
+                        MedicationHistory.dosage == opt.get("dosage")
+                    ).first()
+                    
+                    if existing_hist:
+                        existing_hist.last_used = datetime.now()
+                        existing_hist.use_count += 1
+                    else:
+                        hist = MedicationHistory(
+                            user_id=st.session_state.user_id,
+                            medication=opt["medication"],
+                            dosage=opt.get("dosage"),
+                            last_used=datetime.now(),
+                            use_count=1
+                        )
+                        db.add(hist)
+                    
+                    db.commit()
+                    st.success(f"✅ Logged {opt['medication']}!")
+                    st.rerun()
+        
+        # Quick add ALL at once - for users taking 3-4 meds together
+        st.markdown("---")
+        st.markdown("**Or log ALL your daily medications at once:**")
+        
+        # Show toggle options for each med
+        cols = st.columns(len(quick_add_options)) if quick_add_options else st.columns(1)
+        
+        meds_to_log_all = []
+        for i, opt in enumerate(quick_add_options):
+            with cols[i % len(cols)]:
+                dose_str = f" - {opt['dosage']}" if opt.get('dosage') else ""
+                checked = st.checkbox(f"{opt['medication']}{dose_str}", value=True, key=f"log_all_{i}")
+                if checked:
+                    meds_to_log_all.append(opt)
+        
+        if meds_to_log_all and st.button("📝 Log All Selected", key="log_all_btn"):
+            for opt in meds_to_log_all:
+                log = MedicationLog(
+                    user_id=st.session_state.user_id,
+                    medication=opt["medication"],
+                    dosage=opt.get("dosage"),
+                    taken=1
+                )
+                db.add(log)
+                
+                # Update history
+                existing_hist = db.query(MedicationHistory).filter(
+                    MedicationHistory.user_id == st.session_state.user_id,
+                    MedicationHistory.medication == opt["medication"],
+                    MedicationHistory.dosage == opt.get("dosage")
+                ).first()
+                
+                if existing_hist:
+                    existing_hist.last_used = datetime.now()
+                    existing_hist.use_count += 1
+                else:
+                    hist = MedicationHistory(
+                        user_id=st.session_state.user_id,
+                        medication=opt["medication"],
+                        dosage=opt.get("dosage"),
+                        last_used=datetime.now(),
+                        use_count=1
+                    )
+                    db.add(hist)
+            
+            db.commit()
+            logged_names = ", ".join([m["medication"] for m in meds_to_log_all])
+            st.success(f"✅ Logged all: {logged_names}")
+            st.rerun()
+    else:
+        st.info("Set your medications above to enable quick add")
+    
+    st.markdown("---")
+    
+    # ============== FEATURE 2: MEDICATION REMINDERS ==============
+    st.subheader("⏰ Medication Reminders")
+    
+    # Get existing reminders
+    reminders = db.query(MedicationReminder).filter(
+        MedicationReminder.user_id == st.session_state.user_id
+    ).all()
+    
+    # Calculate and show next dose for GLP-1 (weekly medications)
+    if user.glp1_medication:
+        # Get last GLP-1 log
+        last_glp1 = db.query(MedicationLog).filter(
+            MedicationLog.user_id == st.session_state.user_id,
+            MedicationLog.medication.like(f"%{user.glp1_medication.split()[0]}%"),
+            MedicationLog.taken == 1
+        ).order_by(MedicationLog.timestamp.desc()).first()
+        
+        if last_glp1:
+            # GLP-1 is typically weekly
+            next_dose = last_glp1.timestamp + timedelta(days=7)
+            days_until = (next_dose - datetime.now()).days
+            
+            if days_until >= 0:
+                st.info(f"💉 **Next dose of {user.glp1_medication}:** {next_dose.strftime('%A, %b %d at %I:%M %p')} ({days_until} days)")
+            else:
+                st.warning(f"💉 **Due for {user.glp1_medication}!** Last dose was {abs(days_until)} days ago")
+        else:
+            st.info(f"💉 Log your first dose of {user.glp1_medication} to track your schedule")
+    
+    # Show active reminders
+    if reminders:
+        st.markdown("**Your active reminders:**")
+        for rem in reminders:
+            if rem.is_active:
+                day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+                day_str = day_names[rem.reminder_day] if rem.reminder_day is not None else "Not set"
+                time_str = rem.reminder_time or "Not set"
+                st.write(f"📅 **{rem.medication}** - {day_str} at {time_str}")
+    else:
+        st.info("No reminders set. Add one below!")
+    
+    # Add/Edit reminder form
+    with st.expander("➕ Set Medication Reminder"):
+        with st.form("reminder_form"):
+            # Select medication for reminder
+            reminder_med = st.selectbox("Medication", 
+                [user.glp1_medication, user.other_diabetes_med] if user.glp1_medication or user.other_diabetes_med else [""])
+            
+            reminder_dose = st.text_input("Dosage (optional)", placeholder="e.g., 5mg")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                reminder_day = st.selectbox("Day of Week", 
+                    list(range(7)), 
+                    format_func=lambda x: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][x],
+                    index=0)
+            with col2:
+                reminder_time = st.time_input("Time", value=None)
+            
+            # Determine if GLP-1 (weekly) or daily med
+            is_weekly = st.checkbox("Weekly medication (like Ozempic, Wegovy, Mounjaro)", value=True)
+            
+            if st.form_submit_button("🔔 Set Reminder"):
+                if reminder_med:
+                    # Check if reminder already exists
+                    existing_reminder = db.query(MedicationReminder).filter(
+                        MedicationReminder.user_id == st.session_state.user_id,
+                        MedicationReminder.medication == reminder_med
+                    ).first()
+                    
+                    if existing_reminder:
+                        # Update existing
+                        existing_reminder.reminder_day = reminder_day
+                        existing_reminder.reminder_time = reminder_time.strftime("%H:%M") if reminder_time else None
+                        existing_reminder.is_active = 1
+                    else:
+                        # Create new
+                        new_reminder = MedicationReminder(
+                            user_id=st.session_state.user_id,
+                            medication=reminder_med,
+                            dosage=reminder_dose,
+                            reminder_day=reminder_day,
+                            reminder_time=reminder_time.strftime("%H:%M") if reminder_time else None,
+                            is_active=1
+                        )
+                        db.add(new_reminder)
+                    
+                    db.commit()
+                    freq = "weekly" if is_weekly else "daily"
+                    st.success(f"✅ Reminder set for {reminder_med} ({freq}) on {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][reminder_day]} at {reminder_time.strftime('%I:%M %p') if reminder_time else 'N/A'}!")
+                    st.rerun()
+                else:
+                    st.warning("Please select a medication first")
+    
+    # Show option to delete reminders
+    if reminders:
+        with st.expander("🗑️ Manage Reminders"):
+            for rem in reminders:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+                    day_str = day_names[rem.reminder_day] if rem.reminder_day is not None else "Not set"
+                    time_str = rem.reminder_time or "Not set"
+                    status = "✅ Active" if rem.is_active else "❌ Inactive"
+                    st.write(f"{rem.medication} - {day_str} at {time_str} ({status})")
+                with col2:
+                    if st.button("Delete", key=f"del_rem_{rem.id}"):
+                        db.delete(rem)
+                        db.commit()
+                        st.rerun()
+    
+    st.markdown("---")
+    
+    # ============== LOG DOSE (Standard) ==============
+    st.subheader("✅ Log Today's Dose (Manual)")
     
     # Build user's med list
     user_meds = []
@@ -1501,6 +1785,26 @@ def medication_page():
                     taken=1 if taken else 0
                 )
                 db.add(log)
+                
+                # Update medication history
+                existing_hist = db.query(MedicationHistory).filter(
+                    MedicationHistory.user_id == st.session_state.user_id,
+                    MedicationHistory.medication == med_name
+                ).first()
+                
+                if existing_hist:
+                    existing_hist.last_used = datetime.now()
+                    existing_hist.use_count += 1
+                else:
+                    hist = MedicationHistory(
+                        user_id=st.session_state.user_id,
+                        medication=med_name,
+                        dosage=log_dose if log_dose else user.glp1_dosage,
+                        last_used=datetime.now(),
+                        use_count=1
+                    )
+                    db.add(hist)
+                
                 db.commit()
                 st.success(f"✅ Logged {med_name}!")
                 st.rerun()
@@ -2281,7 +2585,7 @@ Respond with a detailed analysis in these sections:
 Be specific with numbers and dates. If you don't have enough data, say so."""
 
         message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}]
         )
