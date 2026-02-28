@@ -1305,6 +1305,7 @@ Example:
             else:
                 with st.spinner("AI is calculating nutrition..."):
                     try:
+                        import re
                         import anthropic
                         
                         api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
