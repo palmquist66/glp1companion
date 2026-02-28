@@ -795,6 +795,9 @@ def food_page():
                     image_bytes = uploaded_file.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
+                    # Detect image type
+                    image_type = uploaded_file.type if uploaded_file.type else "image/jpeg"
+                    
                     # Call Anthropic Claude Vision API
                     import anthropic
                     
@@ -817,7 +820,7 @@ def food_page():
                                         "type": "image",
                                         "source": {
                                             "type": "base64",
-                                            "media_type": "image/jpeg",
+                                            "media_type": image_type,
                                             "data": image_base64
                                         }
                                     },
@@ -1166,10 +1169,15 @@ If they mention multiple items, list them all and estimate total nutrition."""
             with st.spinner("AI is reading the recipe..."):
                 try:
                     import base64
+                    import anthropic
+                    
                     image_bytes = recipe_image.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
-                    import anthropic
+                    # Detect image type
+                    image_type = recipe_image.type if recipe_image.type else "image/jpeg"
+                    if "png" in recipe_image.name.lower() if recipe_image.name else False:
+                        image_type = "image/png"
                     
                     api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                     if not api_key:
@@ -1189,7 +1197,7 @@ If they mention multiple items, list them all and estimate total nutrition."""
                                         "type": "image",
                                         "source": {
                                             "type": "base64",
-                                            "media_type": "image/jpeg",
+                                            "media_type": image_type,
                                             "data": image_base64
                                         }
                                     },
