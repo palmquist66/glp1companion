@@ -1162,6 +1162,7 @@ If they mention multiple items, list them all and estimate total nutrition."""
         if st.button("🤖 Extract Ingredients from Photo", key="extract_recipe_photo_btn"):
             with st.spinner("AI is reading the recipe..."):
                 try:
+                    import base64
                     image_bytes = recipe_image.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
