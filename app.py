@@ -969,6 +969,9 @@ PROTEIN: [number]"""
         if st.button("🤖 Analyze Voice with AI", key="analyze_voice_btn"):
             with st.spinner("AI is analyzing your voice..."):
                 try:
+                    import anthropic
+                    import base64
+                    
                     # Get audio bytes
                     audio_bytes = audio_value.getvalue()
                     
@@ -1166,6 +1169,8 @@ If they mention multiple items, list them all and estimate total nutrition."""
                     image_bytes = recipe_image.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
+                    import anthropic
+                    
                     api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                     if not api_key:
                         st.error("Add ANTHROPIC_API_KEY to Streamlit secrets!")
@@ -1224,6 +1229,9 @@ If it's a nutrition label, extract all the information."""
         if st.button("🤖 Transcribe Ingredients", key="transcribe_recipe_btn"):
             with st.spinner("AI is transcribing..."):
                 try:
+                    import anthropic
+                    import base64
+                    
                     audio_bytes = voice_ingredients.getvalue()
                     audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
                     
@@ -1289,6 +1297,8 @@ Example:
             else:
                 with st.spinner("AI is calculating nutrition..."):
                     try:
+                        import anthropic
+                        
                         api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                         if not api_key:
                             st.error("Add ANTHROPIC_API_KEY to Streamlit secrets!")
@@ -2457,6 +2467,8 @@ def get_proactive_insights():
 # =============================================================================
 def get_deep_ai_insights(days=30):
     """Generate deep AI-powered insights with correlations"""
+    import anthropic
+    
     db = Session()
     user = db.query(User).filter(User.id == st.session_state.user_id).first()
     
