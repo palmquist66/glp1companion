@@ -3440,40 +3440,6 @@ def main():
     else:
         # Sidebar navigation
         st.markdown("---")
-        st.sidebar.title("🧭 GLP1Companion")
-        
-        # Mobile: Prominent "Close Menu" button at TOP of sidebar (always visible on mobile)
-        st.sidebar.markdown("""
-        <style>
-            @media (max-width: 768px) {
-                .sidebar-top-close {
-                    display: flex !important;
-                }
-            }
-            .sidebar-top-close {
-                display: none !important;
-                width: 100%;
-                padding: 12px 16px;
-                background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-                color: white !important;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                text-align: center;
-                font-size: 16px;
-                font-weight: bold;
-                margin-bottom: 10px;
-                box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
-            }
-            .sidebar-top-close:hover {
-                background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
-            }
-        </style>
-        <button class="sidebar-top-close" onclick="closeSidebarOnMobile()">
-            ✕ Close Menu
-        </button>
-        """, unsafe_allow_html=True)
-        
         # Top tab navigation
         st.markdown("---")
         tab_dashboard, tab_ai, tab_health, tab_medication, tab_settings = st.tabs([
