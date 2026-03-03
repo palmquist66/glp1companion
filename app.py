@@ -220,12 +220,15 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Hide Streamlit header
+# Hide Streamlit header and toolbar
 st.markdown("""
 <style>
-    header {visibility: hidden;}
-    .stApp > header {display: none;}
-    div[data-testid="stHeader"] {display: none;}
+    header {visibility: hidden !important; display: none !important;}
+    .stApp > header {display: none !important;}
+    div[data-testid="stHeader"] {display: none !important;}
+    #MainMenu {visibility: hidden !important;}
+    div[data-testid="stMainMenu"] {display: none !important;}
+    header[data-testid="stHeader"] {display: none !important;}
 </style>
 """, unsafe_allow_html=True)
 
