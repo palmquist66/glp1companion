@@ -962,7 +962,8 @@ PROTEIN: [number]"""
                         st.rerun()
                 with col2:
                     if st.button("🏠 Go to Dashboard", key="go_to_dash_food"):
-                        st.switch_page("Dashboard")
+                        st.session_state.current_tab = "dashboard"
+                        st.rerun()
         
         if st.button("🗑️ Clear / Start Over", key="clear_food_btn"):
             st.session_state.ai_food_analysis = None
