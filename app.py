@@ -216,9 +216,18 @@ def check_password(password, hashed):
 st.set_page_config(
     page_title="GLP1Companion",
     page_icon="💉",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
+
+# Hide Streamlit header
+st.markdown("""
+<style>
+    header {visibility: hidden;}
+    .stApp > header {display: none;}
+    div[data-testid="stHeader"] {display: none;}
+</style>
+""", unsafe_allow_html=True)
 
 # =============================================================================
 # MOBILE CHART CONFIG - CSS-based solution
