@@ -1293,11 +1293,20 @@ Example:
     # Option 3: Manual entry
     st.markdown("**✏️ Option 3: Manual entry**")
     
+    # Initialize recipe servings session state
+    if "recipe_servings" not in st.session_state:
+        st.session_state.recipe_servings = 4
+    
     with st.form("recipe_form"):
         ingredients_text = st.text_area("List ingredients (one per line)", 
             value=st.session_state.recipe_ingredients,
             placeholder="e.g.:\n200g chicken breast\n100g rice\n50g broccoli\n1 tbsp olive oil",
             height=150)
+        
+        # NEW: Ask for servings BEFORE calculating
+        recipe_servings = st.number_input("How many servings does this recipe make?", 
+            min_value=1, max_value=50, value=st.session_state.recipe_servings, step=1)
+        st.session_state.recipe_servings = recipe_servings
         
         if st.form_submit_button("🤖 Calculate Nutrition"):
             if not ingredients_text.strip():
@@ -1351,11 +1360,28 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                         prot_match = re.search(r'TOTAL PROTEIN:\s*(\d+)', ai_text, re.IGNORECASE)
                         
                         if cal_match:
+                            total_cal = int(cal_match.group(1))
+                            total_carbs = int(carb_match.group(1)) if carb_match else 0
+                            total_fat = int(fat_match.group(1)) if fat_match else 0
+                            total_protein = int(prot_match.group(1)) if prot_match else 0
+                            
+                            # Calculate per-serving nutrition
+                            servings = recipe_servings
+                            per_serving_cal = round(total_cal / servings)
+                            per_serving_carbs = round(total_carbs / servings)
+                            per_serving_fat = round(total_fat / servings)
+                            per_serving_protein = round(total_protein / servings)
+                            
                             st.session_state.recipe_nutrition = {
-                                "calories": int(cal_match.group(1)),
-                                "carbs": int(carb_match.group(1)) if carb_match else 0,
-                                "fat": int(fat_match.group(1)) if fat_match else 0,
-                                "protein": int(prot_match.group(1)) if prot_match else 0,
+                                "total_calories": total_cal,
+                                "total_carbs": total_carbs,
+                                "total_fat": total_fat,
+                                "total_protein": total_protein,
+                                "servings": servings,
+                                "per_serving_calories": per_serving_cal,
+                                "per_serving_carbs": per_serving_carbs,
+                                "per_serving_fat": per_serving_fat,
+                                "per_serving_protein": per_serving_protein,
                                 "raw": ai_text
                             }
                             
@@ -1369,11 +1395,25 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
     # Option to log recipe as meal
     if "recipe_nutrition" in st.session_state and st.session_state.recipe_nutrition:
         nutrition = st.session_state.recipe_nutrition
-        st.info(f"📊 Recipe Total: {nutrition['calories']} cal | {nutrition['carbs']}g carbs | {nutrition['fat']}g fat | {nutrition['protein']}g protein")
+        # Show both total and per-serving
+        st.info(f"📊 Recipe Total: {nutrition['total_calories']} cal | {nutrition['total_carbs']}g carbs | {nutrition['total_fat']}g fat | {nutrition['total_protein']}g protein")
+        st.success(f"🍽️ Per Serving ({nutrition['servings']} servings): {nutrition['per_serving_calories']} cal | {nutrition['per_serving_carbs']}g carbs | {nutrition['per_serving_fat']}g fat | {nutrition['per_serving_protein']}g protein")
         
         with st.form("log_recipe_form"):
             recipe_name = st.text_input("Recipe Name", placeholder="e.g., Homemade Chicken Stir Fry")
             meal_type = st.selectbox("Meal Type", ["Breakfast", "Lunch", "Dinner", "Snack"])
+            
+            # NEW: Ask how many servings eaten
+            servings_eaten = st.number_input("How many servings did you eat?", 
+                min_value=0.5, max_value=float(nutrition['servings'] * 2), value=1.0, step=0.5)
+            
+            # Calculate nutrition based on servings eaten
+            logged_cal = round(nutrition['per_serving_calories'] * servings_eaten)
+            logged_carbs = round(nutrition['per_serving_carbs'] * servings_eaten)
+            logged_fat = round(nutrition['per_serving_fat'] * servings_eaten)
+            logged_protein = round(nutrition['per_serving_protein'] * servings_eaten)
+            
+            st.markdown(f"**📝 Logging:** {servings_eaten} serving(s) = {logged_cal} cal | {logged_carbs}g carbs | {logged_fat}g fat | {logged_protein}g protein")
             
             if st.form_submit_button("✅ Log Recipe"):
                 # Validate
@@ -1384,16 +1424,16 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                     log = FoodLog(
                         user_id=st.session_state.user_id,
                         name=recipe_name,
-                        carbs=nutrition["carbs"],
+                        carbs=logged_carbs,
                         meal_type=meal_type.lower(),
-                        notes=f"🧂 Recipe | Cal: {nutrition['calories']} | C: {nutrition['carbs']}g | P: {nutrition['protein']}g | F: {nutrition['fat']}g"
+                        notes=f"🧂 Recipe ({servings_eaten}/{nutrition['servings']} servings) | Cal: {logged_cal} | C: {logged_carbs}g | P: {logged_protein}g | F: {logged_fat}g"
                     )
                     db.add(log)
                     db.commit()
                     db.close()
                     del st.session_state.recipe_nutrition
                     st.session_state.recipe_form_submitted = False
-                    st.success(f"✅ Logged: {recipe_name}")
+                    st.success(f"✅ Logged: {recipe_name} ({logged_cal} cal)")
                     st.rerun()
         
         if st.button("Clear Recipe"):
