@@ -3442,11 +3442,39 @@ def main():
         st.markdown("---")
         st.sidebar.title("🧭 GLP1Companion")
         
-        # Mobile: Add close button at top of sidebar
-        if "mobile_close_clicked" not in st.session_state:
-            st.session_state.mobile_close_clicked = False
+        # Mobile: Prominent "Close Menu" button at TOP of sidebar (always visible on mobile)
+        st.sidebar.markdown("""
+        <style>
+            @media (max-width: 768px) {
+                .sidebar-top-close {
+                    display: flex !important;
+                }
+            }
+            .sidebar-top-close {
+                display: none !important;
+                width: 100%;
+                padding: 12px 16px;
+                background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+                color: white !important;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                text-align: center;
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 10px;
+                box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
+            }
+            .sidebar-top-close:hover {
+                background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+            }
+        </style>
+        <button class="sidebar-top-close" onclick="closeSidebarOnMobile()">
+            ✕ Close Menu
+        </button>
+        """, unsafe_allow_html=True)
         
-        page = st.sidebar.radio(
+        page = st.sidebar.selectbox(
             "Navigate",
             [
                 "📊 Dashboard",
@@ -3525,20 +3553,23 @@ def main():
             }
         }
         
-        // Add click listeners to all radio buttons in sidebar
+        // Handle selectbox (dropdown) change in sidebar
         document.addEventListener('DOMContentLoaded', function() {
             // Wait for Streamlit to fully load
             setTimeout(function() {
-                // Find radio button labels in sidebar
-                const radioLabels = document.querySelectorAll('[data-testid="stRadio"] label');
-                radioLabels.forEach(function(label) {
-                    label.addEventListener('click', function() {
-                        // Small delay to allow radio selection to process
-                        setTimeout(function() {
-                            closeSidebarOnMobile();
-                        }, 100);
-                    });
-                });
+                // Find selectbox in sidebar and listen for changes
+                const sidebarSelect = document.querySelector('[data-testid="stSelectbox"]');
+                if (sidebarSelect) {
+                    // Try to find the actual select element
+                    const selectElement = sidebarSelect.querySelector('select');
+                    if (selectElement) {
+                        selectElement.addEventListener('change', function() {
+                            setTimeout(function() {
+                                closeSidebarOnMobile();
+                            }, 150);
+                        });
+                    }
+                }
                 
                 // Also try to find and intercept sidebar navigation clicks
                 const sidebarContent = document.querySelector('[data-testid="stSidebarContent"]');
