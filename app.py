@@ -3474,151 +3474,45 @@ def main():
         </button>
         """, unsafe_allow_html=True)
         
-        page = st.sidebar.selectbox(
-            "Navigate",
-            [
-                "📊 Dashboard",
-                "💉 Glucose",
-                "⚖️ Weight",
-                "🍎 Food",
-                "💊 Medication",
-                "🤢 Side Effects",
-                "💡 Insights",
-                "📥 Import Dexcom",
-                "📱 Google Fit",
-                "🤖 AI Chat",
-                "⚙️ Settings",
-                "🔧 Admin"
-            ],
-            label_visibility="collapsed"
-        )
+        # Top tab navigation
+        st.markdown("---")
+        tab_dashboard, tab_ai, tab_health, tab_medication, tab_settings = st.tabs([
+            "📊 Dashboard", 
+            "🤖 AI Chat", 
+            "💪 Health", 
+            "💊 Medication",
+            "⚙️ Settings"
+        ])
         
-        # Add close sidebar button for mobile at bottom of sidebar
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("""
-        <style>
-            .mobile-close-btn {
-                display: none;
-            }
-            @media (max-width: 768px) {
-                .mobile-close-btn {
-                    display: block;
-                    width: 100%;
-                    padding: 10px;
-                    background-color: #1e293b;
-                    color: white;
-                    border: none;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    text-align: center;
-                    font-size: 14px;
-                }
-            }
-        </style>
-        <button class="mobile-close-btn" onclick="document.querySelector('[data-testid=\\'stSidebarCollapsibleControl\\']')?.click()">
-            ✕ Close Menu
-        </button>
-        """, unsafe_allow_html=True)
-        
-        # Auto-close sidebar on mobile after selection - improved JavaScript
-        st.markdown("""
-        <script>
-        // Function to close sidebar on mobile
-        function closeSidebarOnMobile() {
-            if (window.innerWidth < 768) {
-                // Find the sidebar and toggle button using multiple selectors
-                const sidebar = document.querySelector('[data-testid="stSidebar"]');
-                const toggle = document.querySelector('[data-testid="stSidebarCollapsibleControl"]') || 
-                               document.querySelector('.stSidebar > div > button') ||
-                               document.querySelector('[aria-label="Collapse sidebar"]') ||
-                               document.querySelector('[aria-label="Expand sidebar"]');
-                
-                if (sidebar && toggle) {
-                    // Check if sidebar is currently open (not collapsed)
-                    const sidebarStyle = window.getComputedStyle(sidebar);
-                    const marginLeft = parseInt(sidebarStyle.marginLeft) || 0;
-                    
-                    // If marginLeft is negative or there's a transform, sidebar is open
-                    if (marginLeft < 0 || sidebar.style.transform === 'translateX(0px)') {
-                        toggle.click();
-                    }
-                }
-                
-                // Alternative: directly modify the sidebar CSS to collapse it
-                const mainContent = document.querySelector('[data-testid="stMain"]');
-                if (sidebar && mainContent) {
-                    sidebar.style.transform = 'translateX(-100%)';
-                    mainContent.style.marginLeft = '0';
-                }
-            }
-        }
-        
-        // Handle selectbox (dropdown) change in sidebar
-        document.addEventListener('DOMContentLoaded', function() {
-            // Wait for Streamlit to fully load
-            setTimeout(function() {
-                // Find selectbox in sidebar and listen for changes
-                const sidebarSelect = document.querySelector('[data-testid="stSelectbox"]');
-                if (sidebarSelect) {
-                    // Try to find the actual select element
-                    const selectElement = sidebarSelect.querySelector('select');
-                    if (selectElement) {
-                        selectElement.addEventListener('change', function() {
-                            setTimeout(function() {
-                                closeSidebarOnMobile();
-                            }, 150);
-                        });
-                    }
-                }
-                
-                // Also try to find and intercept sidebar navigation clicks
-                const sidebarContent = document.querySelector('[data-testid="stSidebarContent"]');
-                if (sidebarContent) {
-                    sidebarContent.addEventListener('click', function(e) {
-                        // Check if click was on a navigation item
-                        if (e.target.tagName === 'LABEL' || e.target.closest('label')) {
-                            setTimeout(function() {
-                                closeSidebarOnMobile();
-                            }, 100);
-                        }
-                    });
-                }
-            }, 1500);
-        });
-        
-        // Also handle any clicks on sidebar after initial load
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                closeSidebarOnMobile();
-            }, 2000);
-        });
-        </script>
-        """, unsafe_allow_html=True)
-        
-        # Route to selected page
-        if page == "📊 Dashboard":
+        with tab_dashboard:
             dashboard()
-        elif page == "💉 Glucose":
-            glucose_page()
-        elif page == "⚖️ Weight":
-            weight_page()
-        elif page == "🍎 Food":
-            food_page()
-        elif page == "💊 Medication":
-            medication_page()
-        elif page == "🤢 Side Effects":
-            side_effects_page()
-        elif page == "💡 Insights":
-            insights_page()
-        elif page == "📥 Import Dexcom":
-            dexcom_import_page()
-        elif page == "📱 Google Fit":
-            google_fit_sync_page()
-        elif page == "🤖 AI Chat":
+        
+        with tab_ai:
             ai_chat_page()
-        elif page == "⚙️ Settings":
+            st.markdown("---")
+            insights_page()
+        
+        with tab_health:
+            weight_page()
+            st.markdown("---")
+            glucose_page()
+            st.markdown("---")
+            food_page()
+        
+        with tab_medication:
+            medication_page()
+            st.markdown("---")
+            side_effects_page()
+            st.markdown("---")
+            dexcom_import_page()
+            st.markdown("---")
+            google_fit_sync_page()
+        
+        with tab_settings:
             settings_page()
-        elif page == "🔧 Admin":
+            st.markdown("---")
+            admin_page()
+
             admin_page()
 
 # =============================================================================
