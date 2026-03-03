@@ -3438,8 +3438,6 @@ def main():
         else:
             login_page()
     else:
-        # Sidebar navigation
-        st.markdown("---")
         # Top tab navigation
         st.markdown("---")
         tab_dashboard, tab_ai, tab_health, tab_medication, tab_settings = st.tabs([
