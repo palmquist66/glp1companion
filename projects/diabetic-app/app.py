@@ -1266,15 +1266,20 @@ Example:
                         
                         message = client.messages.create(
                             model="claude-3-5-sonnet-20241022",
-                            max_tokens=400,
+                            max_tokens=600,
                             messages=[
                                 {
                                     "role": "user",
-                                    "content": f"""Calculate the total nutritional content for this recipe:
+                                    "content": f"""Calculate the TOTAL nutritional content for this recipe (all ingredients combined, as if making the full recipe):
 
 {ingredients_text}
 
-Respond in this exact format with TOTALS at the top, then breakdown:
+IMPORTANT: 
+- Calculate for the FULL recipe, not per serving
+- Estimate reasonable portion sizes (e.g., "1 cup rice" = ~200g, "1 chicken breast" = ~150g, "1 tbsp oil" = ~14g)
+- Use standard USDA nutritional data
+
+Respond in this exact format with TOTALS at the top:
 TOTAL CALORIES: [number]
 TOTAL CARBS: [number]g
 TOTAL FAT: [number]g
@@ -1282,9 +1287,7 @@ TOTAL PROTEIN: [number]g
 
 BREAKDOWN:
 - [ingredient 1]: [calories] cal, [carbs]g carbs, [fat]g fat, [protein]g protein
-- [ingredient 2]: ...
-
-Use standard nutritional data. Estimate portion sizes if not specified."""
+- [ingredient 2]: ..."""
                                 }
                             ]
                         )
@@ -1300,11 +1303,24 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                         prot_match = re.search(r'TOTAL PROTEIN:\s*(\d+)', ai_text, re.IGNORECASE)
                         
                         if cal_match:
+                            calories = int(cal_match.group(1))
+                            carbs = int(carb_match.group(1)) if carb_match else 0
+                            fat = int(fat_match.group(1)) if fat_match else 0
+                            protein = int(prot_match.group(1)) if prot_match else 0
+                            
+                            # Show raw AI response for debugging
+                            with st.expander("🔍 AI Response (for debugging)"):
+                                st.text(ai_text)
+                            
+                            # Sanity check - warn if values seem off
+                            if calories < 10 or carbs < 5:
+                                st.warning("⚠️ These values seem off. Please check the AI response above.")
+                            
                             st.session_state.recipe_nutrition = {
-                                "calories": int(cal_match.group(1)),
-                                "carbs": int(carb_match.group(1)) if carb_match else 0,
-                                "fat": int(fat_match.group(1)) if fat_match else 0,
-                                "protein": int(prot_match.group(1)) if prot_match else 0,
+                                "calories": calories,
+                                "carbs": carbs,
+                                "fat": fat,
+                                "protein": protein,
                                 "raw": ai_text
                             }
                             
@@ -1318,7 +1334,23 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
     # Option to log recipe as meal
     if "recipe_nutrition" in st.session_state and st.session_state.recipe_nutrition:
         nutrition = st.session_state.recipe_nutrition
-        st.info(f"📊 Recipe Total: {nutrition['calories']} cal | {nutrition['carbs']}g carbs | {nutrition['fat']}g fat | {nutrition['protein']}g protein")
+        
+        # Serving size inputs
+        st.markdown("### 🍽️ Serving Calculator")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            servings_in_recipe = st.number_input("Servings in recipe", min_value=1, value=4, step=1, key="servings_in_recipe")
+        with col_s2:
+            servings_eaten = st.number_input("Servings eaten", min_value=0.25, value=1.0, step=0.25, key="servings_eaten")
+        
+        # Calculate adjusted nutrition
+        ratio = servings_eaten / servings_in_recipe if servings_in_recipe > 0 else 1
+        adj_calories = int(nutrition['calories'] * ratio)
+        adj_carbs = int(nutrition['carbs'] * ratio)
+        adj_fat = int(nutrition['fat'] * ratio)
+        adj_protein = int(nutrition['protein'] * ratio)
+        
+        st.info(f"📊 Your portion ({servings_eaten}/{servings_in_recipe} servings): **{adj_calories} cal** | **{adj_carbs}g carbs** | **{adj_fat}g fat** | **{adj_protein}g protein**")
         
         with st.form("log_recipe_form"):
             recipe_name = st.text_input("Recipe Name", placeholder="e.g., Homemade Chicken Stir Fry")
@@ -1333,9 +1365,9 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                     log = FoodLog(
                         user_id=st.session_state.user_id,
                         name=recipe_name,
-                        carbs=nutrition["carbs"],
+                        carbs=adj_carbs,
                         meal_type=meal_type.lower(),
-                        notes=f"🧂 Recipe | Cal: {nutrition['calories']} | C: {nutrition['carbs']}g | P: {nutrition['protein']}g | F: {nutrition['fat']}g"
+                        notes=f"🧂 Recipe ({servings_eaten}/{servings_in_recipe} serv) | Cal: {adj_calories} | C: {adj_carbs}g | P: {adj_protein}g | F: {adj_fat}g"
                     )
                     db.add(log)
                     db.commit()
