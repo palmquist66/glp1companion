@@ -3335,7 +3335,8 @@ def dexcom_import_page():
                 
                 # Offer to view imported data
                 if st.button("📊 Go to Glucose Page", key="go_to_glucose_btn"):
-                    st.switch_page("glucose")
+                    st.session_state.pending_glucose_view = True
+                    st.rerun()
         
         except Exception as e:
             st.error(f"❌ Error reading file: {str(e)}")
