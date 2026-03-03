@@ -3442,6 +3442,10 @@ def main():
         st.markdown("---")
         st.sidebar.title("🧭 GLP1Companion")
         
+        # Mobile: Add close button at top of sidebar
+        if "mobile_close_clicked" not in st.session_state:
+            st.session_state.mobile_close_clicked = False
+        
         page = st.sidebar.radio(
             "Navigate",
             [
@@ -3461,34 +3465,101 @@ def main():
             label_visibility="collapsed"
         )
         
-        # Auto-close sidebar on mobile after selection
+        # Add close sidebar button for mobile at bottom of sidebar
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("""
+        <style>
+            .mobile-close-btn {
+                display: none;
+            }
+            @media (max-width: 768px) {
+                .mobile-close-btn {
+                    display: block;
+                    width: 100%;
+                    padding: 10px;
+                    background-color: #1e293b;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    text-align: center;
+                    font-size: 14px;
+                }
+            }
+        </style>
+        <button class="mobile-close-btn" onclick="document.querySelector('[data-testid=\\'stSidebarCollapsibleControl\\']')?.click()">
+            ✕ Close Menu
+        </button>
+        """, unsafe_allow_html=True)
+        
+        # Auto-close sidebar on mobile after selection - improved JavaScript
         st.markdown("""
         <script>
         // Function to close sidebar on mobile
         function closeSidebarOnMobile() {
             if (window.innerWidth < 768) {
+                // Find the sidebar and toggle button using multiple selectors
                 const sidebar = document.querySelector('[data-testid="stSidebar"]');
-                const toggle = document.querySelector('[data-testid="stSidebarCollapsibleControl"]');
+                const toggle = document.querySelector('[data-testid="stSidebarCollapsibleControl"]') || 
+                               document.querySelector('.stSidebar > div > button') ||
+                               document.querySelector('[aria-label="Collapse sidebar"]') ||
+                               document.querySelector('[aria-label="Expand sidebar"]');
+                
                 if (sidebar && toggle) {
-                    // Try clicking the toggle to close
-                    const isOpen = sidebar.style.marginLeft !== '0px' && sidebar.style.marginLeft !== '';
-                    if (isOpen) {
+                    // Check if sidebar is currently open (not collapsed)
+                    const sidebarStyle = window.getComputedStyle(sidebar);
+                    const marginLeft = parseInt(sidebarStyle.marginLeft) || 0;
+                    
+                    // If marginLeft is negative or there's a transform, sidebar is open
+                    if (marginLeft < 0 || sidebar.style.transform === 'translateX(0px)') {
                         toggle.click();
                     }
+                }
+                
+                // Alternative: directly modify the sidebar CSS to collapse it
+                const mainContent = document.querySelector('[data-testid="stMain"]');
+                if (sidebar && mainContent) {
+                    sidebar.style.transform = 'translateX(-100%)';
+                    mainContent.style.marginLeft = '0';
                 }
             }
         }
         
         // Add click listeners to all radio buttons in sidebar
         document.addEventListener('DOMContentLoaded', function() {
+            // Wait for Streamlit to fully load
             setTimeout(function() {
-                const radioButtons = document.querySelectorAll('[data-testid="stRadio"] label');
-                radioButtons.forEach(function(label) {
+                // Find radio button labels in sidebar
+                const radioLabels = document.querySelectorAll('[data-testid="stRadio"] label');
+                radioLabels.forEach(function(label) {
                     label.addEventListener('click', function() {
-                        closeSidebarOnMobile();
+                        // Small delay to allow radio selection to process
+                        setTimeout(function() {
+                            closeSidebarOnMobile();
+                        }, 100);
                     });
                 });
-            }, 1000);
+                
+                // Also try to find and intercept sidebar navigation clicks
+                const sidebarContent = document.querySelector('[data-testid="stSidebarContent"]');
+                if (sidebarContent) {
+                    sidebarContent.addEventListener('click', function(e) {
+                        // Check if click was on a navigation item
+                        if (e.target.tagName === 'LABEL' || e.target.closest('label')) {
+                            setTimeout(function() {
+                                closeSidebarOnMobile();
+                            }, 100);
+                        }
+                    });
+                }
+            }, 1500);
+        });
+        
+        // Also handle any clicks on sidebar after initial load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                closeSidebarOnMobile();
+            }, 2000);
         });
         </script>
         """, unsafe_allow_html=True)
