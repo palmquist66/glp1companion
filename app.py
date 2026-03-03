@@ -1483,6 +1483,12 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
     st.markdown("---")
     st.subheader("📝 Today's Food")
     
+    # Initialize session state for edit/delete actions
+    if "delete_food_id" not in st.session_state:
+        st.session_state.delete_food_id = None
+    if "edit_food_id" not in st.session_state:
+        st.session_state.edit_food_id = None
+    
     db = Session()
     today = date.today()
     today_start = datetime.combine(today, datetime.min.time())
@@ -1491,16 +1497,95 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
         FoodLog.user_id == st.session_state.user_id,
         FoodLog.timestamp >= today_start
     ).order_by(FoodLog.timestamp.desc()).all()
-    db.close()
+    
+    # Handle delete confirmation
+    if st.session_state.delete_food_id:
+        log_to_delete = db.query(FoodLog).filter(FoodLog.id == st.session_state.delete_food_id).first()
+        if log_to_delete:
+            st.warning(f"🗑️ Delete **{log_to_delete.name}** ({log_to_delete.carbs}g carbs)?")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Yes, Delete", key="confirm_delete"):
+                    db.delete(log_to_delete)
+                    db.commit()
+                    st.success("✅ Entry deleted!")
+                    st.session_state.delete_food_id = None
+                    db.close()
+                    st.rerun()
+            with col2:
+                if st.button("❌ Cancel", key="cancel_delete"):
+                    st.session_state.delete_food_id = None
+                    db.close()
+                    st.rerun()
+        else:
+            st.session_state.delete_food_id = None
+            db.close()
+            st.rerun()
+    
+    # Handle edit form
+    if st.session_state.edit_food_id:
+        log_to_edit = db.query(FoodLog).filter(FoodLog.id == st.session_state.edit_food_id).first()
+        if log_to_edit:
+            with st.expander("✏️ Edit Food Entry", expanded=True):
+                with st.form(f"edit_food_form_{log_to_edit.id}"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        edit_name = st.text_input("Food Name", value=log_to_edit.name)
+                        edit_carbs = st.number_input("Carbs (g)", min_value=0.0, value=float(log_to_edit.carbs or 0), step=1.0)
+                    with col2:
+                        edit_meal_type = st.selectbox("Meal Type", ["Breakfast", "Lunch", "Dinner", "Snack"], 
+                            index=["breakfast", "lunch", "dinner", "snack"].index(log_to_edit.meal_type) if log_to_edit.meal_type in ["breakfast", "lunch", "dinner", "snack"] else 0)
+                    edit_notes = st.text_area("Notes", value=log_to_edit.notes or "")
+                    
+                    col_save, col_cancel = st.columns(2)
+                    with col_save:
+                        if st.form_submit_button("💾 Save Changes"):
+                            log_to_edit.name = edit_name
+                            log_to_edit.carbs = edit_carbs
+                            log_to_edit.meal_type = edit_meal_type.lower()
+                            log_to_edit.notes = edit_notes
+                            db.commit()
+                            st.success("✅ Entry updated!")
+                            st.session_state.edit_food_id = None
+                            db.close()
+                            st.rerun()
+                    with col_cancel:
+                        if st.form_submit_button("❌ Cancel"):
+                            st.session_state.edit_food_id = None
+                            db.close()
+                            st.rerun()
+        else:
+            st.session_state.edit_food_id = None
+            db.close()
+            st.rerun()
     
     if logs:
         total_carbs = sum(log.carbs or 0 for log in logs)
         st.metric("Total Carbs Today", f"{total_carbs}g")
         
+        # Display each food entry with edit and delete buttons
         for log in logs:
-            st.write(f"🕐 {log.timestamp.strftime('%I:%M %p')} - {log.meal_type}: {log.name} ({log.carbs}g carbs)")
+            with st.container():
+                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                with col1:
+                    st.write(f"**{log.name}**")
+                with col2:
+                    st.caption(f"🕐 {log.timestamp.strftime('%I:%M %p')} • {log.meal_type}: {log.carbs}g carbs")
+                with col3:
+                    if st.button("✏️", key=f"edit_{log.id}", help="Edit entry"):
+                        st.session_state.edit_food_id = log.id
+                        st.rerun()
+                with col4:
+                    if st.button("🗑️", key=f"delete_{log.id}", help="Delete entry"):
+                        st.session_state.delete_food_id = log.id
+                        st.rerun()
+                if log.notes:
+                    st.caption(f"📝 {log.notes}")
+                st.divider()
     else:
         st.info("No food logged today")
+    
+    db.close()
 
 # =============================================================================
 # MEDICATION PAGE
