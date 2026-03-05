@@ -189,9 +189,22 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Fix: Move sidebar to top on mobile
+# Fix: Hide Streamlit header/footer and move nav to top on mobile
 st.markdown("""
 <style>
+    /* Hide Streamlit header */
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+    /* Hide footer */
+    footer[data-testid="stFooter"] {
+        display: none !important;
+    }
+    /* Remove top padding */
+    .block-container {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0rem !important;
+    }
     /* On mobile, move sidebar to top */
     @media (max-width: 768px) {
         /* Move sidebar above main content */
@@ -201,6 +214,7 @@ st.markdown("""
             min-width: 100% !important;
             max-width: 100% !important;
             margin-bottom: 10px;
+            border-bottom: 1px solid #333;
         }
         /* Make main content full width */
         [data-testid="stMain"] {
@@ -210,10 +224,6 @@ st.markdown("""
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
             padding-top: 0 !important;
-        }
-        /* Hide sidebar collapse toggle on mobile since it's now at top */
-        [data-testid="stSidebarCollapsibleControl"] {
-            display: none !important;
         }
     }
 </style>
