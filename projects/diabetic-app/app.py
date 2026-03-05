@@ -186,8 +186,31 @@ st.set_page_config(
     page_title="GLP1Companion",
     page_icon="💉",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
+
+# Fix: Remove sidebar gap when collapsed
+st.markdown("""
+<style>
+    /* Remove gap when sidebar is collapsed */
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+    /* Make main content full width when sidebar hidden */
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
+    }
+    /* Ensure full width on mobile too */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # =============================================================================
 # MOBILE CHART CONFIG - CSS-based solution
