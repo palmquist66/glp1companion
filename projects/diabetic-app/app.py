@@ -189,26 +189,32 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Fix: Better sidebar handling for mobile
+# Fix: Move sidebar to top on mobile
 st.markdown("""
 <style>
-    /* Make sidebar collapsible properly */
-    section[data-testid="stSidebar"] {
-        width: 50px !important;
-        transition: width 0.3s;
-    }
-    section[data-testid="stSidebar"][aria-expanded="false"] {
-        width: 0px !important;
-        min-width: 0 !important;
-        overflow: hidden;
-    }
-    /* Adjust main content when sidebar collapsed */
-    [data-testid="stMain"] {
-        margin-left: 0 !important;
-    }
-    .block-container {
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+    /* On mobile, move sidebar to top */
+    @media (max-width: 768px) {
+        /* Move sidebar above main content */
+        [data-testid="stSidebar"] {
+            position: relative !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            margin-bottom: 10px;
+        }
+        /* Make main content full width */
+        [data-testid="stMain"] {
+            margin-left: 0 !important;
+        }
+        .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+            padding-top: 0 !important;
+        }
+        /* Hide sidebar collapse toggle on mobile since it's now at top */
+        [data-testid="stSidebarCollapsibleControl"] {
+            display: none !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
