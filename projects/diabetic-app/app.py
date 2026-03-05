@@ -189,25 +189,26 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Fix: Remove sidebar gap when collapsed
+# Fix: Better sidebar handling for mobile
 st.markdown("""
 <style>
-    /* Remove gap when sidebar is collapsed */
+    /* Make sidebar collapsible properly */
     section[data-testid="stSidebar"] {
-        display: none !important;
+        width: 50px !important;
+        transition: width 0.3s;
     }
-    /* Make main content full width when sidebar hidden */
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        width: 0px !important;
+        min-width: 0 !important;
+        overflow: hidden;
+    }
+    /* Adjust main content when sidebar collapsed */
+    [data-testid="stMain"] {
+        margin-left: 0 !important;
+    }
     .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        max-width: 100% !important;
-    }
-    /* Ensure full width on mobile too */
-    @media (max-width: 768px) {
-        .block-container {
-            padding-left: 0.5rem !important;
-            padding-right: 0.5rem !important;
-        }
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
