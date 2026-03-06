@@ -191,7 +191,7 @@ class MedicationHistory(Base):
 
 
 # Create tables
-Base.metadata.create_all(engine)
+Base.metadata.create_all(engine, extend_existing=True)
 
 # Database migration - add missing columns
 try:
