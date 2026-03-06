@@ -95,6 +95,11 @@ class User(Base):
     glp1_medication = Column(String)
     glp1_dosage = Column(String)
     other_diabetes_med = Column(String)  # Other diabetes medications
+    # Medication schedule fields
+    glp1_schedule_time = Column(String)  # e.g., "07:30"
+    glp1_schedule_days = Column(String)  # e.g., "daily" or "Mon,Sun"
+    other_med_schedule_time = Column(String)
+    other_med_schedule_days = Column(String)
     target_glucose_min = Column(Integer, default=80)
     target_glucose_max = Column(Integer, default=130)
     goal_weight = Column(Float)
@@ -145,7 +150,16 @@ class MedicationLog(Base):
     timestamp = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="medication_logs")
 
-class SideEffect(Base):
+class MedicationSchedule(Base):
+    __tablename__ = "medication_schedules"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    medication = Column(String, nullable=False)
+    medication_type = Column(String)  # "glp1" or "other"
+    dosage = Column(String)
+    time = Column(String)  # "07:30", "23:00"
+    days = Column(String)  # "Daily" or "Mon,Tue,Sun"
+    created_at = Column(DateTime, default=datetime.now)
     __tablename__ = "side_effects"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -155,49 +169,23 @@ class SideEffect(Base):
     timestamp = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="side_effects")
 
-# Feature 1: Medication History - stores previous med+dose combinations for quick add
-class MedicationHistory(Base):
-    __tablename__ = "medication_history"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    medication = Column(String, nullable=False)
-    dosage = Column(String)
-    last_used = Column(DateTime, default=datetime.now)
-    use_count = Column(Integer, default=1)
-
-# Feature 2: Medication Reminders - stores reminder preferences for each med
-class MedicationReminder(Base):
-    __tablename__ = "medication_reminders"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    medication = Column(String, nullable=False)
-    dosage = Column(String)
-    reminder_day = Column(Integer)  # onday, 0=M6=Sunday
-    reminder_time = Column(String)  # Store as "HH:MM" format
-    is_active = Column(Integer, default=1)  # 1=active, 0=inactive
-    last_reminder_sent = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.now)
-
 # Create tables
 Base.metadata.create_all(engine)
 
-# Database migration - add missing columns and tables
+# Database migration - add missing columns
 try:
     from sqlalchemy import text
     with engine.connect() as conn:
         # Add other_diabetes_med column if it doesn't exist
         conn.execute(text("ALTER TABLE users ADD COLUMN other_diabetes_med TEXT"))
+        # Add schedule columns
+        conn.execute(text("ALTER TABLE users ADD COLUMN glp1_schedule_time TEXT"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN glp1_schedule_days TEXT"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN other_med_schedule_time TEXT"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN other_med_schedule_days TEXT"))
         conn.commit()
 except:
-    pass  # Column might already exist
-
-# Create new tables if they don't exist (for Feature 1 & 2)
-from sqlalchemy import inspect
-inspector = inspect(engine)
-existing_tables = inspector.get_table_names()
-
-if "medication_history" not in existing_tables:
-    Base.metadata.create_all(engine)
+    pass  # Columns might already exist
 
 Session = sessionmaker(bind=engine)
 
@@ -216,19 +204,61 @@ def check_password(password, hashed):
 st.set_page_config(
     page_title="GLP1Companion",
     page_icon="💉",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Hide Streamlit header and toolbar
+# Fix: Aggressive fix for mobile blank space
 st.markdown("""
 <style>
-    header {visibility: hidden !important; display: none !important;}
-    .stApp > header {display: none !important;}
-    div[data-testid="stHeader"] {display: none !important;}
-    #MainMenu {visibility: hidden !important;}
-    div[data-testid="stMainMenu"] {display: none !important;}
-    header[data-testid="stHeader"] {display: none !important;}
+    /* Hide Streamlit header completely */
+    header[data-testid="stHeader"] {
+        display: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    /* Hide footer */
+    footer[data-testid="stFooter"] {
+        display: none !important;
+    }
+    /* Remove ALL top margin/padding from main */
+    .block-container {
+        margin-top: 0 !important;
+        padding-top: 0.25rem !important;
+    }
+    /* Remove top space from main content area */
+    [data-testid="stMain"] {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    /* Mobile specific - kill all top space */
+    @media (max-width: 768px) {
+        /* Hide sidebar completely on mobile, move to top */
+        [data-testid="stSidebar"] {
+            position: relative !important;
+            width: 100% !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            border: none !important;
+        }
+        /* Full width main */
+        [data-testid="stMain"] {
+            margin-left: 0 !important;
+            margin-top: 0 !important;
+        }
+        .block-container {
+            margin-top: 0 !important;
+            padding-top: 0.25rem !important;
+            padding-left: 0.25rem !important;
+            padding-right: 0.25rem !important;
+        }
+        /* Remove app header if any */
+        .stApp > header {
+            display: none !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -529,10 +559,77 @@ def dashboard():
     db = Session()
     user = db.query(User).filter(User.id == st.session_state.user_id).first()
     
-    # Get today's data
+    # ============== MEDICATION REMINDER BANNER ==============
+    # Check if there are meds scheduled for today that haven't been logged
     today = date.today()
     today_start = datetime.combine(today, datetime.min.time())
+    weekday = today.strftime("%A")  # Monday, Tuesday, etc.
     
+    # Get medications that are scheduled for today
+    meds_scheduled_today = []
+    
+    # Check GLP-1 schedule
+    if user.glp1_medication and user.glp1_schedule_days:
+        days = user.glp1_schedule_days.split(",")
+        if "Daily" in days or weekday in days:
+            meds_scheduled_today.append({
+                "name": user.glp1_medication,
+                "time": user.glp1_schedule_time,
+                "dosage": user.glp1_dosage,
+                "category": "glp1"
+            })
+    
+    # Check other med schedule
+    if user.other_diabetes_med and user.other_med_schedule_days:
+        days = user.other_med_schedule_days.split(",")
+        if "Daily" in days or weekday in days:
+            meds_scheduled_today.append({
+                "name": user.other_diabetes_med,
+                "time": user.other_med_schedule_time,
+                "dosage": user.glp1_dosage,  # reuse field
+                "category": "other"
+            })
+    
+    # Check which scheduled meds have been logged today
+    meds_not_logged = []
+    for med in meds_scheduled_today:
+        med_logged = db.query(MedicationLog).filter(
+            MedicationLog.user_id == st.session_state.user_id,
+            MedicationLog.medication == med['name'],
+            MedicationLog.timestamp >= today_start,
+            MedicationLog.taken == 1
+        ).first()
+        
+        if not med_logged:
+            meds_not_logged.append(med)
+    
+    # Show notification banner if there are meds not logged
+    if meds_not_logged:
+        st.error("⏰ **You haven't logged your medications yet!**")
+        
+        for med in meds_not_logged:
+            time_str = f" at {med['time']}" if med['time'] else ""
+            st.warning(f"• {med['name']}{time_str} - scheduled for today")
+        
+        # Quick log button
+        with st.form("quick_log_banner"):
+            st.markdown("**Tap to log all scheduled meds:**")
+            if st.form_submit_button("⚡ Quick Log All Scheduled Medications"):
+                for med in meds_not_logged:
+                    log = MedicationLog(
+                        user_id=st.session_state.user_id,
+                        medication=med['name'],
+                        dosage=med['dosage'],
+                        taken=1
+                    )
+                    db.add(log)
+                db.commit()
+                st.success("✅ All medications logged!")
+                st.rerun()
+        
+        st.markdown("---")
+    
+    # Get today's other data
     # Glucose today
     glucose_today = db.query(GlucoseLog).filter(
         GlucoseLog.user_id == st.session_state.user_id,
@@ -807,9 +904,6 @@ def food_page():
                     image_bytes = uploaded_file.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
-                    # Detect image type
-                    image_type = uploaded_file.type if uploaded_file.type else "image/jpeg"
-                    
                     # Call Anthropic Claude Vision API
                     import anthropic
                     
@@ -832,7 +926,7 @@ def food_page():
                                         "type": "image",
                                         "source": {
                                             "type": "base64",
-                                            "media_type": image_type,
+                                            "media_type": "image/jpeg",
                                             "data": image_base64
                                         }
                                     },
@@ -962,8 +1056,7 @@ PROTEIN: [number]"""
                         st.rerun()
                 with col2:
                     if st.button("🏠 Go to Dashboard", key="go_to_dash_food"):
-                        st.session_state.current_tab = "dashboard"
-                        st.rerun()
+                        st.switch_page("Dashboard")
         
         if st.button("🗑️ Clear / Start Over", key="clear_food_btn"):
             st.session_state.ai_food_analysis = None
@@ -985,9 +1078,6 @@ PROTEIN: [number]"""
         if st.button("🤖 Analyze Voice with AI", key="analyze_voice_btn"):
             with st.spinner("AI is analyzing your voice..."):
                 try:
-                    import anthropic
-                    import base64
-                    
                     # Get audio bytes
                     audio_bytes = audio_value.getvalue()
                     
@@ -1004,7 +1094,7 @@ PROTEIN: [number]"""
                     
                     # Use Claude to transcribe and extract nutrition
                     message = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model="claude-3-5-sonnet-20241022",
                         max_tokens=500,
                         messages=[
                             {
@@ -1181,16 +1271,8 @@ If they mention multiple items, list them all and estimate total nutrition."""
         if st.button("🤖 Extract Ingredients from Photo", key="extract_recipe_photo_btn"):
             with st.spinner("AI is reading the recipe..."):
                 try:
-                    import base64
-                    import anthropic
-                    
                     image_bytes = recipe_image.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-                    
-                    # Detect image type
-                    image_type = recipe_image.type if recipe_image.type else "image/jpeg"
-                    if "png" in recipe_image.name.lower() if recipe_image.name else False:
-                        image_type = "image/png"
                     
                     api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                     if not api_key:
@@ -1200,7 +1282,7 @@ If they mention multiple items, list them all and estimate total nutrition."""
                     client = anthropic.Anthropic(api_key=api_key)
                     
                     message = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model="claude-3-5-sonnet-20241022",
                         max_tokens=500,
                         messages=[
                             {
@@ -1210,7 +1292,7 @@ If they mention multiple items, list them all and estimate total nutrition."""
                                         "type": "image",
                                         "source": {
                                             "type": "base64",
-                                            "media_type": image_type,
+                                            "media_type": "image/jpeg",
                                             "data": image_base64
                                         }
                                     },
@@ -1250,9 +1332,6 @@ If it's a nutrition label, extract all the information."""
         if st.button("🤖 Transcribe Ingredients", key="transcribe_recipe_btn"):
             with st.spinner("AI is transcribing..."):
                 try:
-                    import anthropic
-                    import base64
-                    
                     audio_bytes = voice_ingredients.getvalue()
                     audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
                     
@@ -1264,7 +1343,7 @@ If it's a nutrition label, extract all the information."""
                     client = anthropic.Anthropic(api_key=api_key)
                     
                     message = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model="claude-3-5-sonnet-20241022",
                         max_tokens=400,
                         messages=[
                             {
@@ -1306,20 +1385,11 @@ Example:
     # Option 3: Manual entry
     st.markdown("**✏️ Option 3: Manual entry**")
     
-    # Initialize recipe servings session state
-    if "recipe_servings" not in st.session_state:
-        st.session_state.recipe_servings = 4
-    
     with st.form("recipe_form"):
         ingredients_text = st.text_area("List ingredients (one per line)", 
             value=st.session_state.recipe_ingredients,
             placeholder="e.g.:\n200g chicken breast\n100g rice\n50g broccoli\n1 tbsp olive oil",
             height=150)
-        
-        # NEW: Ask for servings BEFORE calculating
-        recipe_servings = st.number_input("How many servings does this recipe make?", 
-            min_value=1, max_value=50, value=st.session_state.recipe_servings, step=1)
-        st.session_state.recipe_servings = recipe_servings
         
         if st.form_submit_button("🤖 Calculate Nutrition"):
             if not ingredients_text.strip():
@@ -1327,9 +1397,6 @@ Example:
             else:
                 with st.spinner("AI is calculating nutrition..."):
                     try:
-                        import re
-                        import anthropic
-                        
                         api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                         if not api_key:
                             st.error("Add ANTHROPIC_API_KEY to Streamlit secrets!")
@@ -1338,16 +1405,21 @@ Example:
                         client = anthropic.Anthropic(api_key=api_key)
                         
                         message = client.messages.create(
-                            model="claude-sonnet-4-20250514",
-                            max_tokens=400,
+                            model="claude-3-5-sonnet-20241022",
+                            max_tokens=600,
                             messages=[
                                 {
                                     "role": "user",
-                                    "content": f"""Calculate the total nutritional content for this recipe:
+                                    "content": f"""Calculate the TOTAL nutritional content for this recipe (all ingredients combined, as if making the full recipe):
 
 {ingredients_text}
 
-Respond in this exact format with TOTALS at the top, then breakdown:
+IMPORTANT: 
+- Calculate for the FULL recipe, not per serving
+- Estimate reasonable portion sizes (e.g., "1 cup rice" = ~200g, "1 chicken breast" = ~150g, "1 tbsp oil" = ~14g)
+- Use standard USDA nutritional data
+
+Respond in this exact format with TOTALS at the top:
 TOTAL CALORIES: [number]
 TOTAL CARBS: [number]g
 TOTAL FAT: [number]g
@@ -1355,9 +1427,7 @@ TOTAL PROTEIN: [number]g
 
 BREAKDOWN:
 - [ingredient 1]: [calories] cal, [carbs]g carbs, [fat]g fat, [protein]g protein
-- [ingredient 2]: ...
-
-Use standard nutritional data. Estimate portion sizes if not specified."""
+- [ingredient 2]: ..."""
                                 }
                             ]
                         )
@@ -1373,28 +1443,24 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                         prot_match = re.search(r'TOTAL PROTEIN:\s*(\d+)', ai_text, re.IGNORECASE)
                         
                         if cal_match:
-                            total_cal = int(cal_match.group(1))
-                            total_carbs = int(carb_match.group(1)) if carb_match else 0
-                            total_fat = int(fat_match.group(1)) if fat_match else 0
-                            total_protein = int(prot_match.group(1)) if prot_match else 0
+                            calories = int(cal_match.group(1))
+                            carbs = int(carb_match.group(1)) if carb_match else 0
+                            fat = int(fat_match.group(1)) if fat_match else 0
+                            protein = int(prot_match.group(1)) if prot_match else 0
                             
-                            # Calculate per-serving nutrition
-                            servings = recipe_servings
-                            per_serving_cal = round(total_cal / servings)
-                            per_serving_carbs = round(total_carbs / servings)
-                            per_serving_fat = round(total_fat / servings)
-                            per_serving_protein = round(total_protein / servings)
+                            # Show raw AI response for debugging
+                            with st.expander("🔍 AI Response (for debugging)"):
+                                st.text(ai_text)
+                            
+                            # Sanity check - warn if values seem off
+                            if calories < 10 or carbs < 5:
+                                st.warning("⚠️ These values seem off. Please check the AI response above.")
                             
                             st.session_state.recipe_nutrition = {
-                                "total_calories": total_cal,
-                                "total_carbs": total_carbs,
-                                "total_fat": total_fat,
-                                "total_protein": total_protein,
-                                "servings": servings,
-                                "per_serving_calories": per_serving_cal,
-                                "per_serving_carbs": per_serving_carbs,
-                                "per_serving_fat": per_serving_fat,
-                                "per_serving_protein": per_serving_protein,
+                                "calories": calories,
+                                "carbs": carbs,
+                                "fat": fat,
+                                "protein": protein,
                                 "raw": ai_text
                             }
                             
@@ -1408,25 +1474,27 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
     # Option to log recipe as meal
     if "recipe_nutrition" in st.session_state and st.session_state.recipe_nutrition:
         nutrition = st.session_state.recipe_nutrition
-        # Show both total and per-serving
-        st.info(f"📊 Recipe Total: {nutrition['total_calories']} cal | {nutrition['total_carbs']}g carbs | {nutrition['total_fat']}g fat | {nutrition['total_protein']}g protein")
-        st.success(f"🍽️ Per Serving ({nutrition['servings']} servings): {nutrition['per_serving_calories']} cal | {nutrition['per_serving_carbs']}g carbs | {nutrition['per_serving_fat']}g fat | {nutrition['per_serving_protein']}g protein")
+        
+        # Serving size inputs
+        st.markdown("### 🍽️ Serving Calculator")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            servings_in_recipe = st.number_input("Servings in recipe", min_value=1, value=4, step=1, key="servings_in_recipe")
+        with col_s2:
+            servings_eaten = st.number_input("Servings eaten", min_value=0.25, value=1.0, step=0.25, key="servings_eaten")
+        
+        # Calculate adjusted nutrition
+        ratio = servings_eaten / servings_in_recipe if servings_in_recipe > 0 else 1
+        adj_calories = int(nutrition['calories'] * ratio)
+        adj_carbs = int(nutrition['carbs'] * ratio)
+        adj_fat = int(nutrition['fat'] * ratio)
+        adj_protein = int(nutrition['protein'] * ratio)
+        
+        st.info(f"📊 Your portion ({servings_eaten}/{servings_in_recipe} servings): **{adj_calories} cal** | **{adj_carbs}g carbs** | **{adj_fat}g fat** | **{adj_protein}g protein**")
         
         with st.form("log_recipe_form"):
             recipe_name = st.text_input("Recipe Name", placeholder="e.g., Homemade Chicken Stir Fry")
             meal_type = st.selectbox("Meal Type", ["Breakfast", "Lunch", "Dinner", "Snack"])
-            
-            # NEW: Ask how many servings eaten
-            servings_eaten = st.number_input("How many servings did you eat?", 
-                min_value=0.5, max_value=float(nutrition['servings'] * 2), value=1.0, step=0.5)
-            
-            # Calculate nutrition based on servings eaten
-            logged_cal = round(nutrition['per_serving_calories'] * servings_eaten)
-            logged_carbs = round(nutrition['per_serving_carbs'] * servings_eaten)
-            logged_fat = round(nutrition['per_serving_fat'] * servings_eaten)
-            logged_protein = round(nutrition['per_serving_protein'] * servings_eaten)
-            
-            st.markdown(f"**📝 Logging:** {servings_eaten} serving(s) = {logged_cal} cal | {logged_carbs}g carbs | {logged_fat}g fat | {logged_protein}g protein")
             
             if st.form_submit_button("✅ Log Recipe"):
                 # Validate
@@ -1437,16 +1505,16 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                     log = FoodLog(
                         user_id=st.session_state.user_id,
                         name=recipe_name,
-                        carbs=logged_carbs,
+                        carbs=adj_carbs,
                         meal_type=meal_type.lower(),
-                        notes=f"🧂 Recipe ({servings_eaten}/{nutrition['servings']} servings) | Cal: {logged_cal} | C: {logged_carbs}g | P: {logged_protein}g | F: {logged_fat}g"
+                        notes=f"🧂 Recipe ({servings_eaten}/{servings_in_recipe} serv) | Cal: {adj_calories} | C: {adj_carbs}g | P: {adj_protein}g | F: {adj_fat}g"
                     )
                     db.add(log)
                     db.commit()
                     db.close()
                     del st.session_state.recipe_nutrition
                     st.session_state.recipe_form_submitted = False
-                    st.success(f"✅ Logged: {recipe_name} ({logged_cal} cal)")
+                    st.success(f"✅ Logged: {recipe_name}")
                     st.rerun()
         
         if st.button("Clear Recipe"):
@@ -1496,12 +1564,6 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
     st.markdown("---")
     st.subheader("📝 Today's Food")
     
-    # Initialize session state for edit/delete actions
-    if "delete_food_id" not in st.session_state:
-        st.session_state.delete_food_id = None
-    if "edit_food_id" not in st.session_state:
-        st.session_state.edit_food_id = None
-    
     db = Session()
     today = date.today()
     today_start = datetime.combine(today, datetime.min.time())
@@ -1510,98 +1572,19 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
         FoodLog.user_id == st.session_state.user_id,
         FoodLog.timestamp >= today_start
     ).order_by(FoodLog.timestamp.desc()).all()
-    
-    # Handle delete confirmation
-    if st.session_state.delete_food_id:
-        log_to_delete = db.query(FoodLog).filter(FoodLog.id == st.session_state.delete_food_id).first()
-        if log_to_delete:
-            st.warning(f"🗑️ Delete **{log_to_delete.name}** ({log_to_delete.carbs}g carbs)?")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Yes, Delete", key="confirm_delete"):
-                    db.delete(log_to_delete)
-                    db.commit()
-                    st.success("✅ Entry deleted!")
-                    st.session_state.delete_food_id = None
-                    db.close()
-                    st.rerun()
-            with col2:
-                if st.button("❌ Cancel", key="cancel_delete"):
-                    st.session_state.delete_food_id = None
-                    db.close()
-                    st.rerun()
-        else:
-            st.session_state.delete_food_id = None
-            db.close()
-            st.rerun()
-    
-    # Handle edit form
-    if st.session_state.edit_food_id:
-        log_to_edit = db.query(FoodLog).filter(FoodLog.id == st.session_state.edit_food_id).first()
-        if log_to_edit:
-            with st.expander("✏️ Edit Food Entry", expanded=True):
-                with st.form(f"edit_food_form_{log_to_edit.id}"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        edit_name = st.text_input("Food Name", value=log_to_edit.name)
-                        edit_carbs = st.number_input("Carbs (g)", min_value=0.0, value=float(log_to_edit.carbs or 0), step=1.0)
-                    with col2:
-                        edit_meal_type = st.selectbox("Meal Type", ["Breakfast", "Lunch", "Dinner", "Snack"], 
-                            index=["breakfast", "lunch", "dinner", "snack"].index(log_to_edit.meal_type) if log_to_edit.meal_type in ["breakfast", "lunch", "dinner", "snack"] else 0)
-                    edit_notes = st.text_area("Notes", value=log_to_edit.notes or "")
-                    
-                    col_save, col_cancel = st.columns(2)
-                    with col_save:
-                        if st.form_submit_button("💾 Save Changes"):
-                            log_to_edit.name = edit_name
-                            log_to_edit.carbs = edit_carbs
-                            log_to_edit.meal_type = edit_meal_type.lower()
-                            log_to_edit.notes = edit_notes
-                            db.commit()
-                            st.success("✅ Entry updated!")
-                            st.session_state.edit_food_id = None
-                            db.close()
-                            st.rerun()
-                    with col_cancel:
-                        if st.form_submit_button("❌ Cancel"):
-                            st.session_state.edit_food_id = None
-                            db.close()
-                            st.rerun()
-        else:
-            st.session_state.edit_food_id = None
-            db.close()
-            st.rerun()
+    db.close()
     
     if logs:
         total_carbs = sum(log.carbs or 0 for log in logs)
         st.metric("Total Carbs Today", f"{total_carbs}g")
         
-        # Display each food entry with edit and delete buttons
         for log in logs:
-            with st.container():
-                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-                with col1:
-                    st.write(f"**{log.name}**")
-                with col2:
-                    st.caption(f"🕐 {log.timestamp.strftime('%I:%M %p')} • {log.meal_type}: {log.carbs}g carbs")
-                with col3:
-                    if st.button("✏️", key=f"edit_{log.id}", help="Edit entry"):
-                        st.session_state.edit_food_id = log.id
-                        st.rerun()
-                with col4:
-                    if st.button("🗑️", key=f"delete_{log.id}", help="Delete entry"):
-                        st.session_state.delete_food_id = log.id
-                        st.rerun()
-                if log.notes:
-                    st.caption(f"📝 {log.notes}")
-                st.divider()
+            st.write(f"🕐 {log.timestamp.strftime('%I:%M %p')} - {log.meal_type}: {log.name} ({log.carbs}g carbs)")
     else:
         st.info("No food logged today")
-    
-    db.close()
 
 # =============================================================================
-# MEDICATION PAGE
+# MEDICATION PAGE - Simplified unified interface
 # =============================================================================
 def medication_page():
     st.title("💊 Medications")
@@ -1609,384 +1592,148 @@ def medication_page():
     db = Session()
     user = db.query(User).filter(User.id == st.session_state.user_id).first()
     
-    # Current meds display
-    col1, col2 = st.columns(2)
-    with col1:
-        if user.glp1_medication:
-            st.metric("💉 GLP-1", user.glp1_medication, user.glp1_dosage)
-        else:
-            st.metric("💉 GLP-1", "Not set")
-    with col2:
-        if user.other_diabetes_med:
-            st.metric("💊 Diabetes", user.other_diabetes_med)
-        else:
-            st.metric("💊 Diabetes", "Not set")
+    # Time options (every 30 min from 6am to 11pm)
+    TIME_OPTIONS = [f"{h:02d}:{m:02d}" for h in range(6, 24) for m in [0, 30]]
+    DAY_OPTIONS = ["Daily", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
-    st.markdown("---")
+    # ============== ADD MEDICATION WITH SCHEDULE ==============
+    st.subheader("➕ Add Medication")
     
-    # ============== SET MEDICATIONS ==============
-    with st.expander("⚙️ Set Your Medications", expanded=True):
-        with st.form("set_meds_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                # Handle case where saved med isn't in list
-                glp1_default = 0
-                if user.glp1_medication and user.glp1_medication in GLP1_MEDICATIONS:
-                    glp1_default = GLP1_MEDICATIONS.index(user.glp1_medication) + 1
-                glp1 = st.selectbox("💉 GLP-1", [""] + GLP1_MEDICATIONS, index=glp1_default)
-            with col2:
-                glp1_dose_default = 0
-                if user.glp1_dosage and user.glp1_dosage in GLP1_DOSAGES:
-                    glp1_dose_default = GLP1_DOSAGES.index(user.glp1_dosage) + 1
-                glp1_dose = st.selectbox("Dosage", [""] + GLP1_DOSAGES, index=glp1_dose_default)
-            
-            col3, col4 = st.columns(2)
-            with col3:
-                other_default = 0
-                if user.other_diabetes_med and user.other_diabetes_med in DIABETES_MEDICATIONS:
-                    other_default = DIABETES_MEDICATIONS.index(user.other_diabetes_med) + 1
-                other_med = st.selectbox("💊 Other Diabetes", [""] + DIABETES_MEDICATIONS, index=other_default)
-            with col4:
-                other_dose = st.text_input("Other Dosage", value="")
-            
-            if st.form_submit_button("💾 Save"):
-                user.glp1_medication = glp1 if glp1 else None
-                user.glp1_dosage = glp1_dose if glp1_dose else None
-                user.other_diabetes_med = other_med if other_med else None
-                db.commit()
-                st.success("✅ Saved!")
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # ============== FEATURE 1: QUICK ADD ==============
-    st.subheader("⚡ Quick Add")
-    
-    # Get user's medication history (previous med+dose combinations)
-    med_history = db.query(MedicationHistory).filter(
-        MedicationHistory.user_id == st.session_state.user_id
-    ).order_by(MedicationHistory.last_used.desc()).limit(10).all()
-    
-    # Also include user's current saved medications
-    quick_add_options = []
-    if user.glp1_medication:
-        quick_add_options.append({
-            "medication": user.glp1_medication,
-            "dosage": user.glp1_dosage,
-            "source": "Current GLP-1"
-        })
-    if user.other_diabetes_med:
-        quick_add_options.append({
-            "medication": user.other_diabetes_med,
-            "dosage": user.other_diabetes_med,
-            "source": "Current Diabetes Med"
-        })
-    
-    # Add from history
-    for h in med_history:
-        existing = any(o["medication"] == h.medication and o.get("dosage") == h.dosage for o in quick_add_options)
-        if not existing:
-            quick_add_options.append({
-                "medication": h.medication,
-                "dosage": h.dosage,
-                "source": f"Previous (used {h.use_count}x)"
-            })
-    
-    if quick_add_options:
-        # Create display options for the selectbox
-        display_options = ["➕ Add New Medication..."]
-        for opt in quick_add_options:
-            dose_str = f" - {opt['dosage']}" if opt.get('dosage') else ""
-            display_options.append(f"{opt['medication']}{dose_str} ({opt['source']})")
-        
-        # Quick add section
-        col1, col2 = st.columns([2, 1])
+    with st.form("add_med_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
         with col1:
-            selected_quick = st.selectbox("Select from previous medications", display_options, key="quick_select")
+            med_name = st.text_input("Medication Name", placeholder="e.g., Metformin")
         with col2:
-            st.write("")  # spacer
-            st.write("")  # spacer
-            if st.button("✅ Quick Log", key="quick_log_btn"):
-                if selected_quick != "➕ Add New Medication...":
-                    # Parse the selected option
-                    selected_idx = display_options.index(selected_quick) - 1
-                    opt = quick_add_options[selected_idx]
-                    
-                    # Log the medication
+            dosage = st.text_input("Dosage", placeholder="e.g., 500mg")
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            time1 = st.selectbox("Time 1", [""] + TIME_OPTIONS, index=0, key="time1")
+        with col4:
+            time2 = st.selectbox("Time 2 (optional)", [""] + TIME_OPTIONS, index=0, key="time2")
+        
+        days = st.multiselect("Days", DAY_OPTIONS, default=["Daily"])
+        
+        submitted = st.form_submit_button("💾 Add Medication")
+        
+        if submitted and med_name:
+            # Add first time
+            if time1:
+                schedule = MedicationSchedule(
+                    user_id=user.id,
+                    medication=med_name,
+                    dosage=dosage if dosage else None,
+                    time=time1,
+                    days=",".join(days) if days else "Daily"
+                )
+                db.add(schedule)
+            
+            # Add second time if specified
+            if time2:
+                schedule2 = MedicationSchedule(
+                    user_id=user.id,
+                    medication=med_name,
+                    dosage=dosage if dosage else None,
+                    time=time2,
+                    days=",".join(days) if days else "Daily"
+                )
+                db.add(schedule2)
+            
+            db.commit()
+            st.success(f"✅ Added {med_name}!")
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # ============== YOUR MEDICATIONS ==============
+    st.subheader("📋 Your Medications")
+    
+    # Get all schedules
+    schedules = db.query(MedicationSchedule).filter(
+        MedicationSchedule.user_id == user.id
+    ).order_by(MedicationSchedule.medication).all()
+    
+    # Group by medication
+    med_groups = {}
+    for s in schedules:
+        if s.medication not in med_groups:
+            med_groups[s.medication] = []
+        med_groups[s.medication].append(s)
+    
+    if med_groups:
+        for med_name, med_schedules in med_groups.items():
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**💊 {med_name}**")
+                    dosage_str = med_schedules[0].dosage if med_schedules[0].dosage else ""
+                    if dosage_str:
+                        st.caption(f"Dosage: {dosage_str}")
+                    # Show all times
+                    times = []
+                    for s in med_schedules:
+                        day_str = s.days if s.days else ""
+                        times.append(f"⏰ {s.time} ({day_str})")
+                    for t in times:
+                        st.write(t)
+                with col2:
+                    if st.button(f"🗑️ Delete", key=f"del_{med_name}"):
+                        db.query(MedicationSchedule).filter(
+                            MedicationSchedule.user_id == user.id,
+                            MedicationSchedule.medication == med_name
+                        ).delete()
+                        db.commit()
+                        st.rerun()
+                st.markdown("---")
+    else:
+        st.info("No medications added. Add one above!")
+    
+    # ============== QUICK LOG ==============
+    st.subheader("⚡ Quick Log")
+    
+    today = date.today()
+    today_start = datetime.combine(today, datetime.min.time())
+    weekday = today.strftime("%A")
+    
+    # Find meds due today that aren't logged
+    due_today = []
+    for s in schedules:
+        if s.days:
+            days_list = s.days.split(",")
+            if "Daily" in days_list or weekday in days_list:
+                # Check if logged
+                logged = db.query(MedicationLog).filter(
+                    MedicationLog.user_id == user.id,
+                    MedicationLog.medication == s.medication,
+                    MedicationLog.taken == 1,
+                    MedicationLog.timestamp >= today_start
+                ).first()
+                if not logged:
+                    due_today.append(s)
+    
+    if due_today:
+        st.warning("⏰ Medications due today:")
+        for s in due_today:
+            st.write(f"• {s.medication} at {s.time}")
+        
+        with st.form("quick_log_form"):
+            meds_to_log = st.multiselect("Select to log:", [s.medication for s in due_today])
+            if st.form_submit_button("✅ Log Selected"):
+                for med in meds_to_log:
                     log = MedicationLog(
-                        user_id=st.session_state.user_id,
-                        medication=opt["medication"],
-                        dosage=opt.get("dosage"),
+                        user_id=user.id,
+                        medication=med,
+                        dosage=None,
                         taken=1
                     )
                     db.add(log)
-                    
-                    # Update or create history entry
-                    existing_hist = db.query(MedicationHistory).filter(
-                        MedicationHistory.user_id == st.session_state.user_id,
-                        MedicationHistory.medication == opt["medication"],
-                        MedicationHistory.dosage == opt.get("dosage")
-                    ).first()
-                    
-                    if existing_hist:
-                        existing_hist.last_used = datetime.now()
-                        existing_hist.use_count += 1
-                    else:
-                        hist = MedicationHistory(
-                            user_id=st.session_state.user_id,
-                            medication=opt["medication"],
-                            dosage=opt.get("dosage"),
-                            last_used=datetime.now(),
-                            use_count=1
-                        )
-                        db.add(hist)
-                    
-                    db.commit()
-                    st.success(f"✅ Logged {opt['medication']}!")
-                    st.rerun()
-        
-        # Quick add ALL at once - for users taking 3-4 meds together
-        st.markdown("---")
-        st.markdown("**Or log ALL your daily medications at once:**")
-        
-        # Show toggle options for each med
-        cols = st.columns(len(quick_add_options)) if quick_add_options else st.columns(1)
-        
-        meds_to_log_all = []
-        for i, opt in enumerate(quick_add_options):
-            with cols[i % len(cols)]:
-                dose_str = f" - {opt['dosage']}" if opt.get('dosage') else ""
-                checked = st.checkbox(f"{opt['medication']}{dose_str}", value=True, key=f"log_all_{i}")
-                if checked:
-                    meds_to_log_all.append(opt)
-        
-        if meds_to_log_all and st.button("📝 Log All Selected", key="log_all_btn"):
-            for opt in meds_to_log_all:
-                log = MedicationLog(
-                    user_id=st.session_state.user_id,
-                    medication=opt["medication"],
-                    dosage=opt.get("dosage"),
-                    taken=1
-                )
-                db.add(log)
-                
-                # Update history
-                existing_hist = db.query(MedicationHistory).filter(
-                    MedicationHistory.user_id == st.session_state.user_id,
-                    MedicationHistory.medication == opt["medication"],
-                    MedicationHistory.dosage == opt.get("dosage")
-                ).first()
-                
-                if existing_hist:
-                    existing_hist.last_used = datetime.now()
-                    existing_hist.use_count += 1
-                else:
-                    hist = MedicationHistory(
-                        user_id=st.session_state.user_id,
-                        medication=opt["medication"],
-                        dosage=opt.get("dosage"),
-                        last_used=datetime.now(),
-                        use_count=1
-                    )
-                    db.add(hist)
-            
-            db.commit()
-            logged_names = ", ".join([m["medication"] for m in meds_to_log_all])
-            st.success(f"✅ Logged all: {logged_names}")
-            st.rerun()
-    else:
-        st.info("Set your medications above to enable quick add")
-    
-    st.markdown("---")
-    
-    # ============== FEATURE 2: MEDICATION REMINDERS ==============
-    st.subheader("⏰ Medication Reminders")
-    
-    # Get existing reminders
-    reminders = db.query(MedicationReminder).filter(
-        MedicationReminder.user_id == st.session_state.user_id
-    ).all()
-    
-    # Calculate and show next dose for GLP-1 (weekly medications)
-    if user.glp1_medication:
-        # Get last GLP-1 log
-        last_glp1 = db.query(MedicationLog).filter(
-            MedicationLog.user_id == st.session_state.user_id,
-            MedicationLog.medication.like(f"%{user.glp1_medication.split()[0]}%"),
-            MedicationLog.taken == 1
-        ).order_by(MedicationLog.timestamp.desc()).first()
-        
-        if last_glp1:
-            # GLP-1 is typically weekly
-            next_dose = last_glp1.timestamp + timedelta(days=7)
-            days_until = (next_dose - datetime.now()).days
-            
-            if days_until >= 0:
-                st.info(f"💉 **Next dose of {user.glp1_medication}:** {next_dose.strftime('%A, %b %d at %I:%M %p')} ({days_until} days)")
-            else:
-                st.warning(f"💉 **Due for {user.glp1_medication}!** Last dose was {abs(days_until)} days ago")
-        else:
-            st.info(f"💉 Log your first dose of {user.glp1_medication} to track your schedule")
-    
-    # Show active reminders
-    if reminders:
-        st.markdown("**Your active reminders:**")
-        for rem in reminders:
-            if rem.is_active:
-                day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-                day_str = day_names[rem.reminder_day] if rem.reminder_day is not None else "Not set"
-                time_str = rem.reminder_time or "Not set"
-                st.write(f"📅 **{rem.medication}** - {day_str} at {time_str}")
-    else:
-        st.info("No reminders set. Add one below!")
-    
-    # Add/Edit reminder form
-    with st.expander("➕ Set Medication Reminder"):
-        with st.form("reminder_form"):
-            # Select medication for reminder
-            reminder_med = st.selectbox("Medication", 
-                [user.glp1_medication, user.other_diabetes_med] if user.glp1_medication or user.other_diabetes_med else [""])
-            
-            reminder_dose = st.text_input("Dosage (optional)", placeholder="e.g., 5mg")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                reminder_day = st.selectbox("Day of Week", 
-                    list(range(7)), 
-                    format_func=lambda x: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][x],
-                    index=0)
-            with col2:
-                reminder_time = st.time_input("Time", value=None)
-            
-            # Determine if GLP-1 (weekly) or daily med
-            is_weekly = st.checkbox("Weekly medication (like Ozempic, Wegovy, Mounjaro)", value=True)
-            
-            if st.form_submit_button("🔔 Set Reminder"):
-                if reminder_med:
-                    # Check if reminder already exists
-                    existing_reminder = db.query(MedicationReminder).filter(
-                        MedicationReminder.user_id == st.session_state.user_id,
-                        MedicationReminder.medication == reminder_med
-                    ).first()
-                    
-                    if existing_reminder:
-                        # Update existing
-                        existing_reminder.reminder_day = reminder_day
-                        existing_reminder.reminder_time = reminder_time.strftime("%H:%M") if reminder_time else None
-                        existing_reminder.is_active = 1
-                    else:
-                        # Create new
-                        new_reminder = MedicationReminder(
-                            user_id=st.session_state.user_id,
-                            medication=reminder_med,
-                            dosage=reminder_dose,
-                            reminder_day=reminder_day,
-                            reminder_time=reminder_time.strftime("%H:%M") if reminder_time else None,
-                            is_active=1
-                        )
-                        db.add(new_reminder)
-                    
-                    db.commit()
-                    freq = "weekly" if is_weekly else "daily"
-                    st.success(f"✅ Reminder set for {reminder_med} ({freq}) on {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][reminder_day]} at {reminder_time.strftime('%I:%M %p') if reminder_time else 'N/A'}!")
-                    st.rerun()
-                else:
-                    st.warning("Please select a medication first")
-    
-    # Show option to delete reminders
-    if reminders:
-        with st.expander("🗑️ Manage Reminders"):
-            for rem in reminders:
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-                    day_str = day_names[rem.reminder_day] if rem.reminder_day is not None else "Not set"
-                    time_str = rem.reminder_time or "Not set"
-                    status = "✅ Active" if rem.is_active else "❌ Inactive"
-                    st.write(f"{rem.medication} - {day_str} at {time_str} ({status})")
-                with col2:
-                    if st.button("Delete", key=f"del_rem_{rem.id}"):
-                        db.delete(rem)
-                        db.commit()
-                        st.rerun()
-    
-    st.markdown("---")
-    
-    # ============== LOG DOSE (Standard) ==============
-    st.subheader("✅ Log Today's Dose (Manual)")
-    
-    # Build user's med list
-    user_meds = []
-    if user.glp1_medication:
-        user_meds.append(f"💉 {user.glp1_medication}")
-    if user.other_diabetes_med:
-        user_meds.append(f"💊 {user.other_diabetes_med}")
-    
-    if not user_meds:
-        st.warning("Set medications above first!")
-    else:
-        with st.form("log_dose_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                log_med = st.selectbox("Medication", user_meds)
-            with col2:
-                log_dose = st.text_input("Dosage", placeholder="e.g., 5mg")
-            
-            taken = st.checkbox("Taken today", value=True)
-            
-            if st.form_submit_button("📝 Log"):
-                med_name = log_med.replace("💉 ", "").replace("💊 ", "")
-                log = MedicationLog(
-                    user_id=st.session_state.user_id,
-                    medication=med_name,
-                    dosage=log_dose if log_dose else user.glp1_dosage,
-                    taken=1 if taken else 0
-                )
-                db.add(log)
-                
-                # Update medication history
-                existing_hist = db.query(MedicationHistory).filter(
-                    MedicationHistory.user_id == st.session_state.user_id,
-                    MedicationHistory.medication == med_name
-                ).first()
-                
-                if existing_hist:
-                    existing_hist.last_used = datetime.now()
-                    existing_hist.use_count += 1
-                else:
-                    hist = MedicationHistory(
-                        user_id=st.session_state.user_id,
-                        medication=med_name,
-                        dosage=log_dose if log_dose else user.glp1_dosage,
-                        last_used=datetime.now(),
-                        use_count=1
-                    )
-                    db.add(hist)
-                
                 db.commit()
-                st.success(f"✅ Logged {med_name}!")
+                st.success("✅ Medications logged!")
                 st.rerun()
-    
-    # History
-    st.markdown("---")
-    st.subheader("📝 Recent History")
-    
-    logs = db.query(MedicationLog).filter(
-        MedicationLog.user_id == st.session_state.user_id
-    ).order_by(MedicationLog.timestamp.desc()).limit(14).all()
-    db.close()
-    
-    if logs:
-        for log in logs:
-            status = "✅" if log.taken else "⏳"
-            st.write(f"{status} {log.timestamp.strftime('%m/%d')} - {log.medication} {log.dosage or ''}")
     else:
-        st.info("No logs yet")
-        st.info("No medication logs yet")
+        st.success("✅ All medications logged for today!")
 
-# =============================================================================
-# SIDE EFFECTS PAGE
-# =============================================================================
+
 def side_effects_page():
     st.title("🤢 Side Effects Tracker")
     
@@ -2614,8 +2361,6 @@ def get_proactive_insights():
 # =============================================================================
 def get_deep_ai_insights(days=30):
     """Generate deep AI-powered insights with correlations"""
-    import anthropic
-    
     db = Session()
     user = db.query(User).filter(User.id == st.session_state.user_id).first()
     
@@ -2745,7 +2490,7 @@ Respond with a detailed analysis in these sections:
 Be specific with numbers and dates. If you don't have enough data, say so."""
 
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -3335,8 +3080,7 @@ def dexcom_import_page():
                 
                 # Offer to view imported data
                 if st.button("📊 Go to Glucose Page", key="go_to_glucose_btn"):
-                    st.session_state.pending_glucose_view = True
-                    st.rerun()
+                    st.switch_page("glucose")
         
         except Exception as e:
             st.error(f"❌ Error reading file: {str(e)}")
@@ -3452,45 +3196,85 @@ def main():
         else:
             login_page()
     else:
-        # Top tab navigation
+        # Sidebar navigation
         st.markdown("---")
-        tab_dashboard, tab_ai, tab_health, tab_medication, tab_settings = st.tabs([
-            "📊 Dashboard", 
-            "🤖 AI Chat", 
-            "💪 Health", 
-            "💊 Medication",
-            "⚙️ Settings"
-        ])
+        st.sidebar.title("🧭 GLP1Companion")
         
-        with tab_dashboard:
+        page = st.sidebar.radio(
+            "Navigate",
+            [
+                "📊 Dashboard",
+                "💉 Glucose",
+                "⚖️ Weight",
+                "🍎 Food",
+                "💊 Medication",
+                "🤢 Side Effects",
+                "💡 Insights",
+                "📥 Import Dexcom",
+                "📱 Google Fit",
+                "🤖 AI Chat",
+                "⚙️ Settings",
+                "🔧 Admin"
+            ],
+            label_visibility="collapsed"
+        )
+        
+        # Auto-close sidebar on mobile after selection
+        st.markdown("""
+        <script>
+        // Function to close sidebar on mobile
+        function closeSidebarOnMobile() {
+            if (window.innerWidth < 768) {
+                const sidebar = document.querySelector('[data-testid="stSidebar"]');
+                const toggle = document.querySelector('[data-testid="stSidebarCollapsibleControl"]');
+                if (sidebar && toggle) {
+                    // Try clicking the toggle to close
+                    const isOpen = sidebar.style.marginLeft !== '0px' && sidebar.style.marginLeft !== '';
+                    if (isOpen) {
+                        toggle.click();
+                    }
+                }
+            }
+        }
+        
+        // Add click listeners to all radio buttons in sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const radioButtons = document.querySelectorAll('[data-testid="stRadio"] label');
+                radioButtons.forEach(function(label) {
+                    label.addEventListener('click', function() {
+                        closeSidebarOnMobile();
+                    });
+                });
+            }, 1000);
+        });
+        </script>
+        """, unsafe_allow_html=True)
+        
+        # Route to selected page
+        if page == "📊 Dashboard":
             dashboard()
-        
-        with tab_ai:
-            ai_chat_page()
-            st.markdown("---")
-            insights_page()
-        
-        with tab_health:
-            weight_page()
-            st.markdown("---")
+        elif page == "💉 Glucose":
             glucose_page()
-            st.markdown("---")
+        elif page == "⚖️ Weight":
+            weight_page()
+        elif page == "🍎 Food":
             food_page()
-        
-        with tab_medication:
+        elif page == "💊 Medication":
             medication_page()
-            st.markdown("---")
+        elif page == "🤢 Side Effects":
             side_effects_page()
-            st.markdown("---")
+        elif page == "💡 Insights":
+            insights_page()
+        elif page == "📥 Import Dexcom":
             dexcom_import_page()
-            st.markdown("---")
+        elif page == "📱 Google Fit":
             google_fit_sync_page()
-        
-        with tab_settings:
+        elif page == "🤖 AI Chat":
+            ai_chat_page()
+        elif page == "⚙️ Settings":
             settings_page()
-            st.markdown("---")
-            admin_page()
-
+        elif page == "🔧 Admin":
             admin_page()
 
 # =============================================================================
