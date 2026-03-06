@@ -109,7 +109,7 @@ class User(Base):
     weight_logs = relationship("WeightLog", back_populates="user")
     food_logs = relationship("FoodLog", back_populates="user")
     medication_logs = relationship("MedicationLog", back_populates="user")
-    #side_effects = relationship("SideEffect", back_populates="user")
+    side_effects = relationship("SideEffect", back_populates="user")
 
 class GlucoseLog(Base):
     __tablename__ = "glucose_logs"
@@ -150,19 +150,26 @@ class MedicationLog(Base):
     timestamp = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="medication_logs")
 
-
 class SideEffect(Base):
     __tablename__ = "side_effects"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     symptom = Column(String, nullable=False)
-    severity = Column(String)
+    severity = Column(String)  # mild, moderate, severe
     notes = Column(Text)
     timestamp = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="side_effects")
 
-
-
+class MedicationSchedule(Base):
+    __tablename__ = "medication_schedules"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    medication = Column(String, nullable=False)
+    medication_type = Column(String)  # "glp1" or "other"
+    dosage = Column(String)
+    time = Column(String)  # "07:30", "23:00"
+    days = Column(String)  # "Daily" or "Mon,Tue,Sun"
+    created_at = Column(DateTime, default=datetime.now)
     __tablename__ = "side_effects"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
