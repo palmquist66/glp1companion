@@ -109,7 +109,7 @@ class User(Base):
     weight_logs = relationship("WeightLog", back_populates="user")
     food_logs = relationship("FoodLog", back_populates="user")
     medication_logs = relationship("MedicationLog", back_populates="user")
-#     # side_effects = relationship\("SideEffect"\)
+    side_effects = relationship("SideEffect")
 
 class GlucoseLog(Base):
     __tablename__ = "glucose_logs"
@@ -150,7 +150,7 @@ class MedicationLog(Base):
     timestamp = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="medication_logs")
 
-# class # SideEffect\(Base):
+class SideEffect(Base):
     __tablename__ = "side_effects"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -1758,7 +1758,7 @@ def side_effects_page():
         
         if st.form_submit_button("Log Side Effect"):
             db = Session()
-#             effect = # SideEffect\(
+            effect = SideEffect(
                 user_id=st.session_state.user_id,
                 symptom=symptom,
                 severity=severity.lower(),
@@ -1780,9 +1780,9 @@ def side_effects_page():
     st.subheader("📝 Recent Side Effects")
     
     db = Session()
-#     effects = # db\.query\(SideEffect\).filter(
-#         SideEffect.user_id == st.session_state.user_id
-#     ).order_by(SideEffect.timestamp.desc()).limit(20).all()
+    effects = db.query(SideEffect).filter(
+        SideEffect.user_id == st.session_state.user_id
+    ).order_by(SideEffect.timestamp.desc()).limit(20).all()
     db.close()
     
     if effects:
@@ -1909,10 +1909,10 @@ def settings_page():
                     MedicationLog.timestamp >= start_date
                 ).order_by(MedicationLog.timestamp.desc()).all()
                 
-#                 side_effects = # db\.query\(SideEffect\).filter(
-#                     SideEffect.user_id == st.session_state.user_id,
-#                     SideEffect.timestamp >= start_date
-#                 ).order_by(SideEffect.timestamp.desc()).all()
+                side_effects = db.query(SideEffect).filter(
+                    SideEffect.user_id == st.session_state.user_id,
+                    SideEffect.timestamp >= start_date
+                ).order_by(SideEffect.timestamp.desc()).all()
                 
                 db.close()
                 
@@ -2031,10 +2031,10 @@ def get_user_context():
     ).order_by(MedicationLog.timestamp.desc()).limit(10).all()
     
     # Recent side effects
-#     side_effects = # db\.query\(SideEffect\).filter(
-#         SideEffect.user_id == st.session_state.user_id,
-#         SideEffect.timestamp >= month_ago
-#     ).order_by(SideEffect.timestamp.desc()).all()
+    side_effects = db.query(SideEffect).filter(
+        SideEffect.user_id == st.session_state.user_id,
+        SideEffect.timestamp >= month_ago
+    ).order_by(SideEffect.timestamp.desc()).all()
     
     # Recent food logs
     food_logs = db.query(FoodLog).filter(
@@ -2328,9 +2328,9 @@ def get_proactive_insights():
             warnings.append("⏰ GLP-1 not marked as taken yet")
     
     # 4. Side effect patterns
-#     side_effects = # db\.query\(SideEffect\).filter(
-#         SideEffect.user_id == st.session_state.user_id,
-#         SideEffect.timestamp >= week_ago
+    side_effects = db.query(SideEffect).filter(
+        SideEffect.user_id == st.session_state.user_id,
+        SideEffect.timestamp >= week_ago
     ).all()
     
     if side_effects:
@@ -2398,10 +2398,10 @@ def get_deep_ai_insights(days=30):
         MedicationLog.timestamp >= start_date
     ).order_by(MedicationLog.timestamp).all()
     
-#     side_effects = # db\.query\(SideEffect\).filter(
-#         SideEffect.user_id == st.session_state.user_id,
-#         SideEffect.timestamp >= start_date
-#     ).order_by(SideEffect.timestamp).all()
+    side_effects = db.query(SideEffect).filter(
+        SideEffect.user_id == st.session_state.user_id,
+        SideEffect.timestamp >= start_date
+    ).order_by(SideEffect.timestamp).all()
     
     # Build data summary
     data_summary = f"""
@@ -3309,7 +3309,7 @@ def admin_page():
         weight_count = db_session.query(WeightLog).count()
         food_count = db_session.query(FoodLog).count()
         medication_count = db_session.query(MedicationLog).count()
-#         side_effect_count = db_session.query(SideEffect).count()
+        side_effect_count = db_session.query(SideEffect).count()
         
         # Display stats in columns
         col1, col2, col3 = st.columns(3)
