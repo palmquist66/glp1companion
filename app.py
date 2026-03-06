@@ -109,7 +109,7 @@ class User(Base):
     weight_logs = relationship("WeightLog", back_populates="user")
     food_logs = relationship("FoodLog", back_populates="user")
     medication_logs = relationship("MedicationLog", back_populates="user")
-    side_effects = relationship("SideEffect", back_populates="user")
+    side_effects = relationship("SideEffect")
 
 class GlucoseLog(Base):
     __tablename__ = "glucose_logs"
