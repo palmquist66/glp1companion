@@ -180,7 +180,7 @@ class MedicationSchedule(Base):
     user = relationship("User", back_populates="side_effects")
 
 # Create tables
-Base.metadata.create_all(engine)
+Base.metadata.create_all(engine, extend_existing=True)
 
 # Database migration - add missing columns
 try:
