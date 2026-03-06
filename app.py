@@ -86,24 +86,6 @@ else:
 Base = declarative_base()
 
 
-class SideEffect(Base):
-    __tablename__ = "side_effects"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    symptom = Column(String, nullable=False)
-    severity = Column(String)  # mild, moderate, severe
-    notes = Column(Text)
-    timestamp = Column(DateTime, default=datetime.now)
-    user = relationship("User", back_populates="side_effects")
-
-class MedicationHistory(Base):
-    __tablename__ = "medication_history"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    medication = Column(String, nullable=False)
-    dosage = Column(String)
-    last_used = Column(DateTime, default=datetime.now)
-
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
@@ -1772,6 +1754,16 @@ def side_effects_page():
         
         if st.form_submit_button("Log Side Effect"):
             db = Session()
+class SideEffect(Base):
+    __tablename__ = "side_effects"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    symptom = Column(String, nullable=False)
+    severity = Column(String)
+    notes = Column(Text)
+    timestamp = Column(DateTime, default=datetime.now)
+    user = relationship("User", back_populates="side_effects")
+
             effect = SideEffect(
                 user_id=st.session_state.user_id,
                 symptom=symptom,
