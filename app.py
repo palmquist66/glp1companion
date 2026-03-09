@@ -1699,21 +1699,20 @@ def medication_page():
         with col2:
             dosage = st.text_input("Dosage", placeholder="e.g., 500mg")
         
-        # Day selection - Daily checkbox + individual days
-        col_daily, col_days = st.columns([1, 3])
-        with col_daily:
-            is_daily = st.checkbox("Daily", value=True, key="is_daily_checkbox")
-        with col_days:
-            if not is_daily:
-                day_cols = st.columns(7)
-                selected_days = []
-                day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-                for i, day in enumerate(day_options):
-                    with day_cols[i]:
-                        if st.checkbox(day, key=f"day_{day}"):
-                            selected_days.append(day)
-            else:
-                selected_days = ["Daily"]
+        # Day selection - uncheck Daily to select specific days
+        is_daily = st.checkbox("Daily", value=True, key="is_daily_checkbox")
+        
+        if not is_daily:
+            st.markdown("**Select days:**")
+            day_cols = st.columns(7)
+            selected_days = []
+            day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            for i, day in enumerate(day_options):
+                with day_cols[i]:
+                    if st.checkbox(day, key=f"day_{day}", value=(i < 5)):
+                        selected_days.append(day)
+        else:
+            selected_days = ["Daily"]
         
         # Time selection - allow multiple times
         st.markdown("**Times:**")
@@ -1776,7 +1775,7 @@ def medication_page():
             ).first()
             
             with st.container():
-                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
                 with col1:
                     status_icon = "🟢" if logged_today else "⚪"
                     st.write(f"{status_icon} **{s.medication}** {s.dosage or ''}")
@@ -1800,6 +1799,11 @@ def medication_page():
                             st.rerun()
                     elif logged_today:
                         st.caption("✅ Logged")
+                with col5:
+                    if st.button("🗑️", key=f"del_{s.id}"):
+                        db.query(MedicationSchedule).filter(MedicationSchedule.id == s.id).delete()
+                        db.commit()
+                        st.rerun()
                 st.markdown("---")
     else:
         st.info("No medications scheduled. Add one above!")
