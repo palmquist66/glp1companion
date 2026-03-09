@@ -1699,37 +1699,62 @@ def medication_page():
         with col2:
             dosage = st.text_input("Dosage", placeholder="e.g., 500mg")
         
-        # Day selection
-        st.markdown("**Days:**")
-        day_cols = st.columns(7)
-        selected_days = []
-        day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        for i, day in enumerate(day_options):
-            with day_cols[i]:
-                if st.checkbox(day, key=f"day_{day}"):
-                    selected_days.append(day)
+        # Day selection - Daily checkbox + individual days
+        col_daily, col_days = st.columns([1, 3])
+        with col_daily:
+            is_daily = st.checkbox("Daily", value=True, key="is_daily_checkbox")
+        with col_days:
+            if not is_daily:
+                day_cols = st.columns(7)
+                selected_days = []
+                day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                for i, day in enumerate(day_options):
+                    with day_cols[i]:
+                        if st.checkbox(day, key=f"day_{day}"):
+                            selected_days.append(day)
+            else:
+                selected_days = ["Daily"]
         
-        # If no days selected, default to Daily
-        if not selected_days:
-            selected_days = ["Daily"]
+        # Time selection - allow multiple times
+        st.markdown("**Times:**")
         
-        selected_time = st.selectbox("Time", TIME_OPTIONS, index=3)  # Default 7:30
+        # Initialize session state for times if not exists
+        if f"num_times_{st.session_state.user_id}" not in st.session_state:
+            st.session_state[f"num_times_{st.session_state.user_id}"] = 1
+        
+        # Allow user to add more time slots
+        num_times = st.session_state[f"num_times_{st.session_state.user_id}"]
+        
+        time_cols = st.columns(min(num_times, 4))
+        selected_times = []
+        
+        for i in range(num_times):
+            with time_cols[i % 4]:
+                default_idx = i * 3 if i < 4 else 0
+                time_val = st.selectbox(f"Time {i+1}", TIME_OPTIONS, index=default_idx, key=f"time_{i}")
+                if time_val:
+                    selected_times.append(time_val)
+        
+        if num_times < 4 and st.button("➕ Add Another Time", key="add_another_time"):
+            st.session_state[f"num_times_{st.session_state.user_id}"] = num_times + 1
+            st.rerun()
         
         if st.form_submit_button("➕ Add Medication"):
-            if med_name and selected_time:
-                schedule = MedicationSchedule(
-                    user_id=user.id,
-                    medication=med_name,
-                    dosage=dosage,
-                    time=selected_time,
-                    days=",".join(selected_days)
-                )
-                db.add(schedule)
+            if med_name and selected_times:
+                for t in selected_times:
+                    schedule = MedicationSchedule(
+                        user_id=user.id,
+                        medication=med_name,
+                        dosage=dosage,
+                        time=t,
+                        days=",".join(selected_days)
+                    )
+                    db.add(schedule)
                 db.commit()
-                st.success(f"✅ Added {med_name}")
+                st.success(f"✅ Added {med_name} ({len(selected_times)} time(s))")
                 st.rerun()
             else:
-                st.error("Name and time required")
+                st.error("Name and at least one time required")
     
     st.markdown("---")
     
