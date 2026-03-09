@@ -1730,8 +1730,6 @@ def medication_page():
                 st.rerun()
             else:
                 st.error("Name and time required")
-            else:
-                st.error("Name and time required")
     
     st.markdown("---")
     
