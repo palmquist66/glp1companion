@@ -1699,29 +1699,30 @@ def medication_page():
         with col2:
             dosage = st.text_input("Dosage", placeholder="e.g., 500mg")
         
-        daily_check = st.checkbox("Daily", value=True)
+        # Day selection
+        st.markdown("**Days:**")
+        day_cols = st.columns(7)
+        selected_days = []
+        day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        for i, day in enumerate(day_options):
+            with day_cols[i]:
+                if st.checkbox(day, key=f"day_{day}"):
+                    selected_days.append(day)
         
-        if not daily_check:
-            day_cols = st.columns(7)
-            selected_days = []
-            day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-            for i, day in enumerate(day_options):
-                with day_cols[i]:
-                    if st.checkbox(day, key=f"day_{day}", value=(i < 5)):
-                        selected_days.append(day)
-        else:
+        # If no days selected, default to Daily
+        if not selected_days:
             selected_days = ["Daily"]
         
-        selected_time = st.selectbox("Time", [""] + TIME_OPTIONS, index=7)  # Default 7:30
+        selected_time = st.selectbox("Time", TIME_OPTIONS, index=3)  # Default 7:30
         
-        if st.form_submit_button("➕ Add"):
+        if st.form_submit_button("➕ Add Medication"):
             if med_name and selected_time:
                 schedule = MedicationSchedule(
                     user_id=user.id,
                     medication=med_name,
                     dosage=dosage,
                     time=selected_time,
-                    days=",".join(selected_days) if selected_days else "Daily"
+                    days=",".join(selected_days)
                 )
                 db.add(schedule)
                 db.commit()
@@ -1729,6 +1730,65 @@ def medication_page():
                 st.rerun()
             else:
                 st.error("Name and time required")
+            else:
+                st.error("Name and time required")
+    
+    st.markdown("---")
+    
+    # ============== YOUR MEDICATIONS ==============
+    st.subheader("💊 Your Medications")
+    
+    # Get all scheduled meds
+    all_schedules = db.query(MedicationSchedule).filter(
+        MedicationSchedule.user_id == user.id
+    ).order_by(MedicationSchedule.time).all()
+    
+    if all_schedules:
+        today = date.today()
+        today_start = datetime.combine(today, datetime.min.time())
+        weekday = today.strftime("%A")[:3]  # Mon, Tue, etc.
+        
+        for s in all_schedules:
+            # Check if this med is due today
+            days_list = s.days.split(",") if s.days else []
+            is_due_today = "Daily" in days_list or weekday in days_list
+            
+            # Check if logged today
+            logged_today = db.query(MedicationLog).filter(
+                MedicationLog.user_id == user.id,
+                MedicationLog.medication == s.medication,
+                MedicationLog.taken == 1,
+                MedicationLog.timestamp >= today_start
+            ).first()
+            
+            with st.container():
+                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                with col1:
+                    status_icon = "🟢" if logged_today else "⚪"
+                    st.write(f"{status_icon} **{s.medication}** {s.dosage or ''}")
+                with col2:
+                    st.caption(f"⏰ {s.time}")
+                with col3:
+                    days_str = s.days if s.days else "Daily"
+                    st.caption(f"📅 {days_str}")
+                with col4:
+                    if is_due_today and not logged_today:
+                        if st.button("✅ Log", key=f"log_{s.id}"):
+                            log = MedicationLog(
+                                user_id=user.id,
+                                medication=s.medication,
+                                dosage=s.dosage,
+                                taken=1,
+                                timestamp=datetime.now()
+                            )
+                            db.add(log)
+                            db.commit()
+                            st.rerun()
+                    elif logged_today:
+                        st.caption("✅ Logged")
+                st.markdown("---")
+    else:
+        st.info("No medications scheduled. Add one above!")
     
     st.markdown("---")
     
@@ -1747,42 +1807,7 @@ def medication_page():
     
     st.markdown("---")
     
-    # ============== SET MEDICATIONS ==============
-    with st.expander("⚙️ Set Your Medications", expanded=True):
-        with st.form("set_meds_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                # Handle case where saved med isn't in list
-                glp1_default = 0
-                if user.glp1_medication and user.glp1_medication in GLP1_MEDICATIONS:
-                    glp1_default = GLP1_MEDICATIONS.index(user.glp1_medication) + 1
-                glp1 = st.selectbox("💉 GLP-1", [""] + GLP1_MEDICATIONS, index=glp1_default)
-            with col2:
-                glp1_dose_default = 0
-                if user.glp1_dosage and user.glp1_dosage in GLP1_DOSAGES:
-                    glp1_dose_default = GLP1_DOSAGES.index(user.glp1_dosage) + 1
-                glp1_dose = st.selectbox("Dosage", [""] + GLP1_DOSAGES, index=glp1_dose_default)
-            
-            col3, col4 = st.columns(2)
-            with col3:
-                other_default = 0
-                if user.other_diabetes_med and user.other_diabetes_med in DIABETES_MEDICATIONS:
-                    other_default = DIABETES_MEDICATIONS.index(user.other_diabetes_med) + 1
-                other_med = st.selectbox("💊 Other Diabetes", [""] + DIABETES_MEDICATIONS, index=other_default)
-            with col4:
-                other_dose = st.text_input("Other Dosage", value="")
-            
-            if st.form_submit_button("💾 Save"):
-                user.glp1_medication = glp1 if glp1 else None
-                user.glp1_dosage = glp1_dose if glp1_dose else None
-                user.other_diabetes_med = other_med if other_med else None
-                db.commit()
-                st.success("✅ Saved!")
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # ============== FEATURE 1: QUICK ADD ==============
+    # ============== QUICK ADD ==============
     st.subheader("⚡ Quick Add")
     
     # Get user's medication history (previous med+dose combinations)
