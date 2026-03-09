@@ -1714,20 +1714,29 @@ def medication_page():
         else:
             selected_days = ["Daily"]
         
-        # Time selection - allow multiple times
+        # Time selection - number input OUTSIDE form for dynamic updates
         st.markdown("**Times:**")
-        # Number of times per day
         num_times = st.number_input("How many times per day?", min_value=1, max_value=4, value=1, key="num_times_input")
         
+        # Time inputs (outside form so they update dynamically)
         time_cols = st.columns(min(num_times, 4))
-        selected_times = []
+        time0 = time1 = time2 = time3 = None
         
-        for i in range(num_times):
-            with time_cols[i % 4]:
-                default_idx = i * 3 if i < 4 else 0
-                time_val = st.selectbox(f"Time {i+1}", TIME_OPTIONS, index=default_idx, key=f"time_{i}")
-                if time_val:
-                    selected_times.append(time_val)
+        if num_times >= 1:
+            with time_cols[0]:
+                time0 = st.selectbox("Time 1", TIME_OPTIONS, index=3, key="time_0")
+        if num_times >= 2:
+            with time_cols[1]:
+                time1 = st.selectbox("Time 2", TIME_OPTIONS, index=21, key="time_1")
+        if num_times >= 3:
+            with time_cols[2]:
+                time2 = st.selectbox("Time 3", TIME_OPTIONS, index=3, key="time_2")
+        if num_times >= 4:
+            with time_cols[3]:
+                time3 = st.selectbox("Time 4", TIME_OPTIONS, index=21, key="time_3")
+        
+        # Collect selected times
+        selected_times = [t for t in [time0, time1, time2, time3] if t]
         
         if st.form_submit_button("➕ Add Medication"):
             if med_name and selected_times:
