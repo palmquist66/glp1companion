@@ -1692,31 +1692,32 @@ def medication_page():
     
     TIME_OPTIONS = [f"{h:02d}:{m:02d}" for h in range(6, 24) for m in [0, 30]]
     
+    # Day selection - OUTSIDE form for dynamic updates
+    st.markdown("**Schedule:**")
+    is_daily = st.checkbox("Daily", value=True, key="is_daily_checkbox")
+    
+    if not is_daily:
+        st.markdown("Select days:")
+        day_cols = st.columns(7)
+        selected_days = []
+        day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        for i, day in enumerate(day_options):
+            with day_cols[i]:
+                if st.checkbox(day, key=f"day_{day}", value=(i < 5)):
+                    selected_days.append(day)
+    else:
+        selected_days = ["Daily"]
+    
+    # Time selection - OUTSIDE form for dynamic updates
+    st.markdown("**Times:**")
+    num_times = st.number_input("How many times per day?", min_value=1, max_value=4, value=1, key="num_times_input")
+    
     with st.form("add_scheduled_med", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             med_name = st.text_input("Medication Name", placeholder="e.g., Metformin")
         with col2:
             dosage = st.text_input("Dosage", placeholder="e.g., 500mg")
-        
-        # Day selection - uncheck Daily to select specific days
-        is_daily = st.checkbox("Daily", value=True, key="is_daily_checkbox")
-        
-        if not is_daily:
-            st.markdown("**Select days:**")
-            day_cols = st.columns(7)
-            selected_days = []
-            day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-            for i, day in enumerate(day_options):
-                with day_cols[i]:
-                    if st.checkbox(day, key=f"day_{day}", value=(i < 5)):
-                        selected_days.append(day)
-        else:
-            selected_days = ["Daily"]
-        
-        # Time selection - number input OUTSIDE form for dynamic updates
-        st.markdown("**Times:**")
-        num_times = st.number_input("How many times per day?", min_value=1, max_value=4, value=1, key="num_times_input")
         
         # Time inputs (outside form so they update dynamically)
         time_cols = st.columns(min(num_times, 4))
