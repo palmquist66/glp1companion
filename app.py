@@ -1717,13 +1717,8 @@ def medication_page():
         
         # Time selection - allow multiple times
         st.markdown("**Times:**")
-        
-        # Initialize session state for times if not exists
-        if f"num_times_{st.session_state.user_id}" not in st.session_state:
-            st.session_state[f"num_times_{st.session_state.user_id}"] = 1
-        
-        # Allow user to add more time slots
-        num_times = st.session_state[f"num_times_{st.session_state.user_id}"]
+        # Number of times per day
+        num_times = st.number_input("How many times per day?", min_value=1, max_value=4, value=1, key="num_times_input")
         
         time_cols = st.columns(min(num_times, 4))
         selected_times = []
@@ -1734,10 +1729,6 @@ def medication_page():
                 time_val = st.selectbox(f"Time {i+1}", TIME_OPTIONS, index=default_idx, key=f"time_{i}")
                 if time_val:
                     selected_times.append(time_val)
-        
-        if num_times < 4 and st.button("➕ Add Another Time", key="add_another_time"):
-            st.session_state[f"num_times_{st.session_state.user_id}"] = num_times + 1
-            st.rerun()
         
         if st.form_submit_button("➕ Add Medication"):
             if med_name and selected_times:
