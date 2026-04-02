@@ -396,7 +396,7 @@ if not isinstance(st.session_state.get("chat_messages"), list):
 def landing_page():
     """Marketing landing page shown before login/signup."""
 
-    # Landing page CSS
+    # Landing page CSS — uses inherit/currentColor to respect Streamlit's theme
     st.markdown("""
     <style>
         .landing-hero h1 {
@@ -408,7 +408,7 @@ def landing_page():
         .landing-hero .subhead {
             font-size: 1.15rem;
             line-height: 1.6;
-            color: #444;
+            opacity: 0.85;
             max-width: 600px;
         }
         .landing-section-header {
@@ -420,7 +420,7 @@ def landing_page():
         .landing-body {
             font-size: 1.05rem;
             line-height: 1.7;
-            color: #333;
+            opacity: 0.9;
         }
         .landing-feature-title {
             font-size: 1.1rem;
@@ -429,13 +429,13 @@ def landing_page():
             margin-bottom: 0.3rem;
         }
         .landing-testimonial {
-            background: #f8f9fb;
+            background: rgba(28, 131, 225, 0.08);
             border-left: 3px solid #1C83E1;
             padding: 1rem 1.2rem;
             margin: 0.8rem 0;
             border-radius: 0 8px 8px 0;
             font-style: italic;
-            color: #444;
+            opacity: 0.9;
         }
         .landing-objection-q {
             font-weight: 600;
@@ -443,7 +443,7 @@ def landing_page():
             margin-top: 1rem;
         }
         .landing-objection-a {
-            color: #555;
+            opacity: 0.8;
             margin-bottom: 0.8rem;
         }
         .landing-cta-box {
@@ -454,20 +454,20 @@ def landing_page():
             margin: 2rem 0;
         }
         .landing-cta-box h2 {
-            color: white;
+            color: white !important;
             font-size: 1.5rem;
             margin-bottom: 0.5rem;
         }
         .landing-cta-box p {
-            color: rgba(255,255,255,0.9);
+            color: rgba(255,255,255,0.9) !important;
             font-size: 1.05rem;
         }
         .landing-footer {
             text-align: center;
-            color: #888;
+            opacity: 0.5;
             font-size: 0.9rem;
             padding: 1.5rem 0;
-            border-top: 1px solid #eee;
+            border-top: 1px solid rgba(128,128,128,0.3);
             margin-top: 2rem;
         }
     </style>
