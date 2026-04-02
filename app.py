@@ -384,10 +384,295 @@ st.session_state.setdefault("user_name", None)
 st.session_state.setdefault("chat_messages", [])
 st.session_state.setdefault("show_signup", False)
 st.session_state.setdefault("show_reset", False)
+st.session_state.setdefault("show_login", False)
 
 # Force proper type if somehow corrupted (fixes str assignment error)
 if not isinstance(st.session_state.get("chat_messages"), list):
     st.session_state.chat_messages = []
+
+# =============================================================================
+# LANDING PAGE
+# =============================================================================
+def landing_page():
+    """Marketing landing page shown before login/signup."""
+
+    # Landing page CSS
+    st.markdown("""
+    <style>
+        .landing-hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            color: #1C83E1;
+        }
+        .landing-hero .subhead {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            color: #444;
+            max-width: 600px;
+        }
+        .landing-section-header {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 0.8rem;
+        }
+        .landing-body {
+            font-size: 1.05rem;
+            line-height: 1.7;
+            color: #333;
+        }
+        .landing-feature-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+        }
+        .landing-testimonial {
+            background: #f8f9fb;
+            border-left: 3px solid #1C83E1;
+            padding: 1rem 1.2rem;
+            margin: 0.8rem 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            color: #444;
+        }
+        .landing-objection-q {
+            font-weight: 600;
+            font-size: 1.05rem;
+            margin-top: 1rem;
+        }
+        .landing-objection-a {
+            color: #555;
+            margin-bottom: 0.8rem;
+        }
+        .landing-cta-box {
+            background: linear-gradient(135deg, #1C83E1 0%, #1565C0 100%);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        .landing-cta-box h2 {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .landing-cta-box p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.05rem;
+        }
+        .landing-footer {
+            text-align: center;
+            color: #888;
+            font-size: 0.9rem;
+            padding: 1.5rem 0;
+            border-top: 1px solid #eee;
+            margin-top: 2rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Hero ──────────────────────────────────────────────────────────────
+    st.markdown('<div class="landing-hero">', unsafe_allow_html=True)
+    st.markdown("# Stop tracking. Start seeing.")
+    st.markdown(
+        '<p class="subhead">Your weight in one app. Your food in another. '
+        'Your side effects in a note you\'ll never find again. '
+        'GLP-1 Companion brings it all together and shows you what it means.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    col_cta1, col_cta2, _ = st.columns([1, 1, 2])
+    with col_cta1:
+        if st.button("Get Started Free", type="primary", key="hero_signup"):
+            st.session_state.show_signup = True
+            st.session_state.show_login = False
+            st.rerun()
+    with col_cta2:
+        if st.button("Log In", key="hero_login"):
+            st.session_state.show_login = True
+            st.session_state.show_signup = False
+            st.rerun()
+
+    st.markdown("---")
+
+    # ── Problem ───────────────────────────────────────────────────────────
+    st.markdown(
+        '<p class="landing-section-header">'
+        'You\'re doing everything right. So why does it feel like guesswork?</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="landing-body">'
+        '<p>You started your GLP-1. You\'re tracking your weight. Logging meals. '
+        'Writing down side effects when you remember to. Maybe you sync your Dexcom.</p>'
+        '<p>But it\'s all in different places. None of it talks to each other.</p>'
+        '<p>When your weight stalls for two weeks, you can\'t tell if it\'s the dose change, '
+        'the food, or something else. When you sit down with your doctor, '
+        'you\'re piecing it together from memory.</p>'
+        '<p><strong>Data everywhere. Insight nowhere.</strong></p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("---")
+
+    # ── Solution ──────────────────────────────────────────────────────────
+    st.markdown(
+        '<p class="landing-section-header">'
+        'One app. One timeline. The whole picture.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="landing-body">'
+        '<p>GLP-1 Companion puts your weight, food, medication, side effects, '
+        'and glucose on a single timeline. Not as a pile of numbers. '
+        'As connected patterns you can read.</p>'
+        '<p>Your nausea peaked three days after a dose increase and resolved by day five? '
+        'Now you can see that. Weight flatlined for two weeks, then dropped once you hit '
+        'your protein targets? That\'s not random. That\'s a pattern you can work with.</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("---")
+
+    # ── Features ──────────────────────────────────────────────────────────
+    st.markdown(
+        '<p class="landing-section-header">'
+        'Everything you\'re already tracking. Finally connected.</p>',
+        unsafe_allow_html=True,
+    )
+
+    feat_col1, feat_col2 = st.columns(2)
+
+    with feat_col1:
+        st.markdown(
+            '<p class="landing-feature-title">Track what matters</p>'
+            '<p class="landing-body">Weight, food, glucose, medications, side effects. '
+            'One place. No more toggling between apps or forgetting where you logged what.</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="landing-feature-title">Walk into your appointment prepared</p>'
+            '<p class="landing-body">Export a PDF with your trends, medication history, and patterns. '
+            'Your doctor sees what happened between visits instead of relying on what you remember.</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="landing-feature-title">Bring your existing data</p>'
+            '<p class="landing-body">Google Fit and Dexcom CGM data flow in automatically. '
+            'You don\'t have to pick between apps or start from scratch.</p>',
+            unsafe_allow_html=True,
+        )
+
+    with feat_col2:
+        st.markdown(
+            '<p class="landing-feature-title">Ask your data a question</p>'
+            '<p class="landing-body">"Why did my weight stall last week?" '
+            '"Is this side effect normal at this dose?" '
+            'The AI reads your full history, not one data point.</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="landing-feature-title">Medication on one timeline</p>'
+            '<p class="landing-body">Track every dose. Set reminders. Log side effects by severity. '
+            'See how your body responds across dose changes and titrations, mapped together.</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="landing-feature-title">Built around GLP-1s</p>'
+            '<p class="landing-body">This isn\'t a diet app with medication tracking added later. '
+            'Every feature was designed for how semaglutide and tirzepatide actually work.</p>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("---")
+
+    # ── Social Proof ──────────────────────────────────────────────────────
+    st.markdown(
+        '<p class="landing-section-header">What people are saying</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="landing-testimonial">'
+        '"I can see that my energy dip every Tuesday is two days after my injection. '
+        'That\'s not random. Now I plan around it."</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="landing-testimonial">'
+        '"My doctor said \'this is exactly what I need to see.\' '
+        'First time I\'ve walked into an appointment feeling prepared."</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="landing-testimonial">'
+        '"I was tracking in MyFitnessPal, Apple Health, and a notes app. '
+        'Now it\'s one screen and I can actually see what\'s happening."</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("---")
+
+    # ── Objections ────────────────────────────────────────────────────────
+    st.markdown(
+        '<p class="landing-section-header">Yeah, but...</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<p class="landing-objection-q">"I don\'t want another app."</p>'
+        '<p class="landing-objection-a">Neither do we. This replaces the three or four '
+        'you\'re already using. Fewer apps, more clarity.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<p class="landing-objection-q">"Is my health data safe?"</p>'
+        '<p class="landing-objection-a">Your data is yours. '
+        'We don\'t sell it, share it, or use it for ads.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<p class="landing-objection-q">"Will this actually help, or is it more tracking?"</p>'
+        '<p class="landing-objection-a">If the data doesn\'t connect to a pattern, '
+        'we don\'t ask you to log it. Every feature exists to make something clearer, '
+        'not to collect more numbers.</p>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("---")
+
+    # ── Final CTA ─────────────────────────────────────────────────────────
+    st.markdown(
+        '<div class="landing-cta-box">'
+        '<h2>Your data already has the answers.<br>You need one place to see them.</h2>'
+        '<p>GLP-1 Companion is free. No credit card. No trial clock.<br>'
+        'Track your medication, weight, food, and side effects in one place '
+        'and start seeing what connects.</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    col_bottom1, col_bottom2, _ = st.columns([1, 1, 2])
+    with col_bottom1:
+        if st.button("Create Your Free Account", type="primary", key="bottom_signup"):
+            st.session_state.show_signup = True
+            st.session_state.show_login = False
+            st.rerun()
+    with col_bottom2:
+        if st.button("Log In", key="bottom_login"):
+            st.session_state.show_login = True
+            st.session_state.show_signup = False
+            st.rerun()
+
+    # ── Footer ────────────────────────────────────────────────────────────
+    st.markdown(
+        '<div class="landing-footer">See the pattern. Make the call.</div>',
+        unsafe_allow_html=True,
+    )
+
 
 # =============================================================================
 # AUTH PAGES
@@ -419,14 +704,20 @@ def login_page():
                 st.error("Invalid password. Use 'Forgot Password' to reset.")
     
     st.markdown("---")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Don't have an account? Sign up"):
             st.session_state.show_signup = True
+            st.session_state.show_login = False
             st.rerun()
     with col2:
         if st.button("Forgot Password?"):
             st.session_state.show_reset = True
+            st.rerun()
+    with col3:
+        if st.button("← Back to home", key="login_back"):
+            st.session_state.show_login = False
+            st.session_state.show_signup = False
             st.rerun()
 
 
@@ -527,9 +818,17 @@ def signup_page():
                 db.close()
     
     st.markdown("---")
-    if st.button("Already have an account? Login"):
-        st.session_state.show_signup = False
-        st.rerun()
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        if st.button("Already have an account? Login"):
+            st.session_state.show_signup = False
+            st.session_state.show_login = True
+            st.rerun()
+    with col_s2:
+        if st.button("← Back to home", key="signup_back"):
+            st.session_state.show_signup = False
+            st.session_state.show_login = False
+            st.rerun()
 
 # =============================================================================
 # DASHBOARD
@@ -3620,13 +3919,17 @@ def main():
             st.session_state.show_signup = False
         if "show_reset" not in st.session_state:
             st.session_state.show_reset = False
-        
+        if "show_login" not in st.session_state:
+            st.session_state.show_login = False
+
         if st.session_state.show_reset:
             reset_password_page()
         elif st.session_state.show_signup:
             signup_page()
-        else:
+        elif st.session_state.show_login:
             login_page()
+        else:
+            landing_page()
     else:
         # Top tab navigation
         st.markdown("---")
