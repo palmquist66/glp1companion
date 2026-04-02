@@ -922,7 +922,47 @@ def dashboard():
     
     with c4:
         st.info("💊 Go to Medication tab to log")
-    
+
+    # Pattern Insights
+    st.markdown("---")
+    st.subheader("💡 Pattern Insights")
+
+    # Session-state cache with 5-min TTL
+    cache = st.session_state.get("pattern_insights_cache")
+    cache_valid = (cache is not None
+                   and "timestamp" in cache
+                   and (datetime.now() - cache["timestamp"]).total_seconds() < 300)
+
+    if cache_valid:
+        pattern_insights = cache["data"]
+    else:
+        pattern_insights = get_pattern_insights(st.session_state.user_id)
+        st.session_state.pattern_insights_cache = {
+            "data": pattern_insights,
+            "timestamp": datetime.now()
+        }
+
+    if pattern_insights:
+        for insight in pattern_insights:
+            if insight["type"] == "positive":
+                st.success(f"📉 {insight['text']}")
+            elif insight["type"] == "warning":
+                st.warning(f"⚠️ {insight['text']}")
+            else:
+                st.info(f"📊 {insight['text']}")
+    else:
+        # Check if user has any data at all
+        db_check = Session()
+        has_meds = db_check.query(MedicationLog).filter(
+            MedicationLog.user_id == st.session_state.user_id
+        ).first() is not None
+        db_check.close()
+
+        if has_meds:
+            st.info("📊 Keep logging to see patterns — I'll spot correlations as your data grows.")
+        else:
+            st.info("📊 Start logging medications and health data to unlock pattern insights.")
+
     # Recent activity
     st.markdown("---")
     st.subheader("📝 Recent Activity")
@@ -1039,6 +1079,7 @@ def weight_page():
             db.commit()
             db.close()
             st.session_state.weight_saved = True
+            st.session_state.pop("pattern_insights_cache", None)
             st.success("✅ Weight logged!")
             st.rerun()
     
@@ -1988,6 +2029,7 @@ def medication_page():
                             )
                             db.add(log)
                         db.commit()
+                        st.session_state.pop("pattern_insights_cache", None)
                         st.success(f"✅ {len(meds_due_today)} medication(s) logged!")
                         st.rerun()
                     except Exception as e:
@@ -2280,6 +2322,7 @@ def medication_page():
             
             db.commit()
             logged_names = ", ".join([m["medication"] for m in meds_to_log_all])
+            st.session_state.pop("pattern_insights_cache", None)
             st.success(f"✅ Logged all: {logged_names}")
             st.rerun()
     else:
@@ -2499,6 +2542,7 @@ def side_effects_page():
             db.commit()
             db.close()
             st.session_state.sideeffect_saved = True
+            st.session_state.pop("pattern_insights_cache", None)
             st.success("✅ Side effect logged!")
             st.rerun()
     
@@ -3094,8 +3138,211 @@ def get_proactive_insights():
         insights.append(f"💪 You've logged {total_glucose} glucose readings total!")
     
     db.close()
-    
+
     return warnings, insights
+
+
+# =============================================================================
+# PATTERN ENGINE — deterministic correlation detection
+# =============================================================================
+
+def parse_dosage_value(dosage_str):
+    """Extract numeric mg value from dosage strings like '2.5mg', '14mg (daily)', 'Other'."""
+    if not dosage_str:
+        return None
+    match = re.search(r'(\d+\.?\d*)\s*mg', dosage_str, re.IGNORECASE)
+    return float(match.group(1)) if match else None
+
+
+def detect_dose_changes(user_id, lookback_days=90):
+    """Scan medication_logs for dose changes. Returns list of change events."""
+    db = Session()
+    try:
+        cutoff = datetime.now() - timedelta(days=lookback_days)
+        logs = db.query(MedicationLog).filter(
+            MedicationLog.user_id == user_id,
+            MedicationLog.timestamp >= cutoff,
+            MedicationLog.taken == 1
+        ).order_by(MedicationLog.timestamp.asc()).all()
+
+        # Group by medication name
+        med_groups = {}
+        for log in logs:
+            med_groups.setdefault(log.medication, []).append(log)
+
+        changes = []
+        for med_name, med_logs in med_groups.items():
+            prev_dose = None
+            prev_dose_str = None
+            for log in med_logs:
+                current_dose = parse_dosage_value(log.dosage)
+                if current_dose is None:
+                    continue
+                if prev_dose is not None and current_dose != prev_dose:
+                    direction = "increase" if current_dose > prev_dose else "decrease"
+                    changes.append({
+                        "medication": med_name,
+                        "date": log.timestamp,
+                        "old_dose": prev_dose,
+                        "old_dose_str": prev_dose_str,
+                        "new_dose": current_dose,
+                        "new_dose_str": log.dosage,
+                        "direction": direction
+                    })
+                prev_dose = current_dose
+                prev_dose_str = log.dosage
+
+        return changes
+    finally:
+        db.close()
+
+
+def analyze_weight_dose_correlation(user_id):
+    """Task 1: Weight ↔ dose correlation. Returns insight dicts."""
+    dose_changes = detect_dose_changes(user_id)
+    if not dose_changes:
+        return []
+
+    db = Session()
+    try:
+        insights = []
+        for change in dose_changes:
+            change_date = change["date"]
+            window_before_start = change_date - timedelta(days=14)
+            window_after_end = change_date + timedelta(days=14)
+
+            weights_before = db.query(WeightLog).filter(
+                WeightLog.user_id == user_id,
+                WeightLog.timestamp >= window_before_start,
+                WeightLog.timestamp < change_date
+            ).all()
+
+            weights_after = db.query(WeightLog).filter(
+                WeightLog.user_id == user_id,
+                WeightLog.timestamp >= change_date,
+                WeightLog.timestamp <= window_after_end
+            ).all()
+
+            if not weights_before or not weights_after:
+                continue
+
+            avg_before = sum(w.value for w in weights_before) / len(weights_before)
+            avg_after = sum(w.value for w in weights_after) / len(weights_after)
+            delta = avg_after - avg_before
+
+            if abs(delta) < 0.1:
+                continue
+
+            med_short = change["medication"].split(" (")[0]
+
+            if delta < 0:
+                text = (f"Weight dropped {abs(delta):.1f} lbs in 2 weeks after "
+                        f"{med_short} dose {change['direction']} to {change['new_dose']:.1f}mg")
+                insights.append({
+                    "text": text,
+                    "type": "positive",
+                    "priority": abs(delta),
+                    "category": "weight_dose"
+                })
+            else:
+                text = (f"Weight increased {delta:.1f} lbs in 2 weeks after "
+                        f"{med_short} dose {change['direction']} to {change['new_dose']:.1f}mg")
+                insights.append({
+                    "text": text,
+                    "type": "neutral",
+                    "priority": delta * 0.5,
+                    "category": "weight_dose"
+                })
+
+        return insights
+    finally:
+        db.close()
+
+
+def analyze_side_effect_dose_correlation(user_id):
+    """Task 2: Side effect ↔ dose correlation. Returns insight dicts."""
+    dose_changes = detect_dose_changes(user_id)
+    if not dose_changes:
+        return []
+
+    db = Session()
+    try:
+        insights = []
+        for change in dose_changes:
+            change_date = change["date"]
+            window_end = change_date + timedelta(days=14)
+
+            effects = db.query(SideEffect).filter(
+                SideEffect.user_id == user_id,
+                SideEffect.timestamp >= change_date,
+                SideEffect.timestamp <= window_end
+            ).all()
+
+            if not effects:
+                continue
+
+            # Group by symptom
+            symptom_data = {}
+            for e in effects:
+                if e.symptom not in symptom_data:
+                    symptom_data[e.symptom] = {
+                        "count": 0,
+                        "severities": [],
+                        "days": []
+                    }
+                symptom_data[e.symptom]["count"] += 1
+                symptom_data[e.symptom]["severities"].append(e.severity or "mild")
+                day_offset = (e.timestamp - change_date).days
+                symptom_data[e.symptom]["days"].append(day_offset)
+
+            med_short = change["medication"].split(" (")[0]
+
+            for symptom, data in symptom_data.items():
+                days = data["days"]
+                # Peak day = mode (most frequent day offset)
+                day_counts = {}
+                for d in days:
+                    day_counts[d] = day_counts.get(d, 0) + 1
+                peak_day = max(day_counts, key=day_counts.get)
+                first_day = min(days)
+                last_day = max(days)
+
+                # Severity scoring: severe=3, moderate=2, mild=1
+                sev_map = {"severe": 3, "moderate": 2, "mild": 1}
+                max_severity = max(sev_map.get(s, 1) for s in data["severities"])
+
+                if last_day <= 7 and data["count"] > 1:
+                    text = (f"{symptom} peaked day {peak_day} after {med_short} dose "
+                            f"{change['direction']}, resolved by day {last_day}")
+                elif data["count"] == 1:
+                    text = (f"{symptom} reported day {first_day} after {med_short} dose "
+                            f"{change['direction']} to {change['new_dose']:.1f}mg")
+                else:
+                    text = (f"{symptom} reported {data['count']}x over days {first_day}-{last_day} "
+                            f"after {med_short} dose {change['direction']}")
+
+                priority = max_severity * data["count"]
+                insights.append({
+                    "text": text,
+                    "type": "warning" if max_severity >= 2 else "neutral",
+                    "priority": priority,
+                    "category": "side_effect_dose"
+                })
+
+        return insights
+    finally:
+        db.close()
+
+
+def get_pattern_insights(user_id, max_insights=3):
+    """Orchestrator: merge all pattern analyzers, return top N insights."""
+    all_insights = []
+    all_insights.extend(analyze_weight_dose_correlation(user_id))
+    all_insights.extend(analyze_side_effect_dose_correlation(user_id))
+    # Future analyzers slot in here (e.g., food-protein correlation)
+
+    all_insights.sort(key=lambda x: x["priority"], reverse=True)
+    return all_insights[:max_insights]
 
 
 # DEEP AI INSIGHTS AGENT
