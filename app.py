@@ -231,6 +231,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Cache-control: force browsers to always fetch fresh content
+st.markdown("""
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+""", unsafe_allow_html=True)
+
 # Hide Streamlit header and toolbar
 st.markdown("""
 <style>
@@ -396,7 +403,7 @@ if not isinstance(st.session_state.get("chat_messages"), list):
 def landing_page():
     """Marketing landing page shown before login/signup."""
 
-    # Landing page CSS — uses inherit/currentColor to respect Streamlit's theme
+    # Landing page CSS — explicit colors so nothing depends on cached theme
     st.markdown("""
     <style>
         .landing-hero h1 {
@@ -408,7 +415,7 @@ def landing_page():
         .landing-hero .subhead {
             font-size: 1.15rem;
             line-height: 1.6;
-            opacity: 0.85;
+            color: rgba(255, 255, 255, 0.85);
             max-width: 600px;
         }
         .landing-section-header {
@@ -416,17 +423,22 @@ def landing_page():
             font-weight: 600;
             margin-top: 2rem;
             margin-bottom: 0.8rem;
+            color: #FAFAFA !important;
         }
         .landing-body {
             font-size: 1.05rem;
             line-height: 1.7;
-            opacity: 0.9;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .landing-body strong {
+            color: #FFFFFF;
         }
         .landing-feature-title {
             font-size: 1.1rem;
             font-weight: 600;
             margin-top: 1.2rem;
             margin-bottom: 0.3rem;
+            color: #FAFAFA;
         }
         .landing-testimonial {
             background: rgba(28, 131, 225, 0.08);
@@ -435,15 +447,16 @@ def landing_page():
             margin: 0.8rem 0;
             border-radius: 0 8px 8px 0;
             font-style: italic;
-            opacity: 0.9;
+            color: rgba(255, 255, 255, 0.9);
         }
         .landing-objection-q {
             font-weight: 600;
             font-size: 1.05rem;
             margin-top: 1rem;
+            color: #FAFAFA;
         }
         .landing-objection-a {
-            opacity: 0.8;
+            color: rgba(255, 255, 255, 0.8);
             margin-bottom: 0.8rem;
         }
         .landing-cta-box {
@@ -464,7 +477,7 @@ def landing_page():
         }
         .landing-footer {
             text-align: center;
-            opacity: 0.5;
+            color: rgba(255, 255, 255, 0.5);
             font-size: 0.9rem;
             padding: 1.5rem 0;
             border-top: 1px solid rgba(128,128,128,0.3);
