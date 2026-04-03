@@ -1373,124 +1373,84 @@ PROTEIN: [number]"""
     
     st.markdown("---")
     
-    # Voice food logging with AI
-    st.subheader("🎤 Voice Log")
-    st.write("Say what you ate — AI will find the nutrition info")
-    
-    # Audio input for voice
-    audio_value = st.audio_input("Tap to record what you ate")
-    
-    if audio_value is not None:
-        st.audio(audio_value, format="audio/wav")
-        
-        if st.button("🤖 Analyze Voice with AI", key="analyze_voice_btn"):
-            with st.spinner("AI is analyzing your voice..."):
-                try:
-                    import anthropic
-                    import base64
-                    
-                    # Get audio bytes
-                    audio_bytes = audio_value.getvalue()
-                    
-                    # Get API key from secrets
-                    api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
-                    if not api_key:
-                        st.error("Add ANTHROPIC_API_KEY to Streamlit secrets!")
-                        st.stop()
-                    
-                    client = anthropic.Anthropic(api_key=api_key)
-                    
-                    # Convert audio to base64 for API
-                    audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-                    
-                    # Use Claude to transcribe and extract nutrition
-                    message = client.messages.create(
-                        model="claude-sonnet-4-20250514",
-                        max_tokens=500,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "audio",
-                                        "source": {
-                                            "type": "base64",
-                                            "media_type": "audio/wav",
-                                            "data": audio_base64
-                                        }
-                                    },
-                                    {
-                                        "type": "text",
-                                        "text": """Listen to this voice note about food. First, transcribe what the person says. Then, estimate the nutritional content for what they describe.
+    # Quick AI food logging
+    st.subheader("🎤 Quick Log")
+    st.write("Describe what you ate — AI will estimate the nutrition")
+
+    quick_food_text = st.text_input("What did you eat?", placeholder='e.g. "grilled chicken breast with rice and broccoli"', key="quick_food_input")
+
+    if quick_food_text and st.button("🤖 Analyze with AI", key="analyze_quick_btn"):
+        with st.spinner("AI is estimating nutrition..."):
+            try:
+                api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
+                if not api_key:
+                    st.error("Add ANTHROPIC_API_KEY to Streamlit secrets!")
+                    st.stop()
+
+                client = anthropic.Anthropic(api_key=api_key)
+
+                message = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=500,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"""Estimate the nutritional content for this food: {quick_food_text}
 
 Respond in this exact format:
-TRANSCRIPT: [what they said]
 FOOD: [name of food or meal]
 CALORIES: [estimated calories]
 CARBS: [carbs in grams]
 FAT: [fat in grams]
 PROTEIN: [protein in grams]
 
-If they mention multiple items, list them all and estimate total nutrition."""
-                                    }
-                                ]
-                            }
-                        ]
-                    )
-                    
-                    ai_text = message.content[0].text
-                    
-                    # Parse the response
-                    food_name = ""
-                    carbs = 0
-                    calories = 0
-                    fat = 0
-                    protein = 0
-                    transcript = ""
-                    
-                    # Extract transcript
-                    trans_match = re.search(r'TRANSCRIPT:\s*(.+?)(?:\nFOOD:|$)', ai_text, re.IGNORECASE | re.DOTALL)
-                    if trans_match:
-                        transcript = trans_match.group(1).strip()
-                    
-                    # FOOD
-                    food_match = re.search(r'FOOD:\s*(.+?)(?:\nCALORIES:|$)', ai_text, re.IGNORECASE | re.DOTALL)
-                    if food_match:
-                        food_name = food_match.group(1).strip()
-                    
-                    # CALORIES
-                    cal_match = re.search(r'CALORIES:\s*(\d+)', ai_text, re.IGNORECASE)
-                    if cal_match:
-                        calories = int(cal_match.group(1))
-                    
-                    # CARBS
-                    carb_match = re.search(r'CARBS:\s*(\d+)', ai_text, re.IGNORECASE)
-                    if carb_match:
-                        carbs = int(carb_match.group(1))
-                    
-                    # FAT
-                    fat_match = re.search(r'FAT:\s*(\d+)', ai_text, re.IGNORECASE)
-                    if fat_match:
-                        fat = int(fat_match.group(1))
-                    
-                    # PROTEIN
-                    prot_match = re.search(r'PROTEIN:\s*(\d+)', ai_text, re.IGNORECASE)
-                    if prot_match:
-                        protein = int(prot_match.group(1))
-                    
-                    # Store in session state for the form
-                    st.session_state.voice_food_analysis = {
-                        "food_name": food_name,
-                        "carbs": carbs,
-                        "calories": calories,
-                        "fat": fat,
-                        "protein": protein,
-                        "transcript": transcript
-                    }
-                    st.success(f"✅ AI detected: {food_name} (~{calories} cal, {carbs}g carbs)")
-                    
-                except Exception as e:
-                    st.error(f"AI Error: {e}")
+If multiple items are mentioned, list them all and estimate total nutrition."""
+                        }
+                    ]
+                )
+
+                ai_text = message.content[0].text
+
+                # Parse the response
+                food_name = ""
+                carbs = 0
+                calories = 0
+                fat = 0
+                protein = 0
+
+                food_match = re.search(r'FOOD:\s*(.+?)(?:\nCALORIES:|$)', ai_text, re.IGNORECASE | re.DOTALL)
+                if food_match:
+                    food_name = food_match.group(1).strip()
+
+                cal_match = re.search(r'CALORIES:\s*(\d+)', ai_text, re.IGNORECASE)
+                if cal_match:
+                    calories = int(cal_match.group(1))
+
+                carb_match = re.search(r'CARBS:\s*(\d+)', ai_text, re.IGNORECASE)
+                if carb_match:
+                    carbs = int(carb_match.group(1))
+
+                fat_match = re.search(r'FAT:\s*(\d+)', ai_text, re.IGNORECASE)
+                if fat_match:
+                    fat = int(fat_match.group(1))
+
+                prot_match = re.search(r'PROTEIN:\s*(\d+)', ai_text, re.IGNORECASE)
+                if prot_match:
+                    protein = int(prot_match.group(1))
+
+                # Store in session state for the form
+                st.session_state.voice_food_analysis = {
+                    "food_name": food_name,
+                    "carbs": carbs,
+                    "calories": calories,
+                    "fat": fat,
+                    "protein": protein,
+                    "transcript": quick_food_text
+                }
+                st.success(f"✅ AI detected: {food_name} (~{calories} cal, {carbs}g carbs)")
+
+            except Exception as e:
+                st.error(f"AI Error: {e}")
     
     # Initialize form session state for voice food
     if "voice_form_submitted" not in st.session_state:
@@ -1643,71 +1603,8 @@ If it's a nutrition label, extract all the information."""
                 except Exception as e:
                     st.error(f"AI Error: {e}")
     
-    # Option 2: Voice input for ingredients
-    st.markdown("**🎤 Option 2: Voice ingredients**")
-    voice_ingredients = st.audio_input("Tap to dict ingredients")
-    
-    if voice_ingredients is not None:
-        st.audio(voice_ingredients, format="audio/wav")
-        
-        if st.button("🤖 Transcribe Ingredients", key="transcribe_recipe_btn"):
-            with st.spinner("AI is transcribing..."):
-                try:
-                    import anthropic
-                    import base64
-                    
-                    audio_bytes = voice_ingredients.getvalue()
-                    audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-                    
-                    api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
-                    if not api_key:
-                        st.error("Add ANTHROPIC_API_KEY to Streamlit secrets!")
-                        st.stop()
-                    
-                    client = anthropic.Anthropic(api_key=api_key)
-                    
-                    message = client.messages.create(
-                        model="claude-sonnet-4-20250514",
-                        max_tokens=400,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "audio",
-                                        "source": {
-                                            "type": "base64",
-                                            "media_type": "audio/wav",
-                                            "data": audio_base64
-                                        }
-                                    },
-                                    {
-                                        "type": "text",
-                                        "text": """Listen to this voice note about recipe ingredients. Transcribe what ingredients are mentioned.
-
-List each ingredient on a new line in this format:
-[quantity] [unit] [ingredient]
-
-Example:
-200g chicken breast
-100g white rice
-50g broccoli"""
-                                    }
-                                ]
-                            }
-                        ]
-                    )
-                    
-                    transcribed = message.content[0].text
-                    st.session_state.recipe_ingredients = transcribed
-                    st.success("✅ Ingredients transcribed!")
-                    st.text_area("Transcribed ingredients:", value=transcribed, height=150, key="transcribed_view")
-                    
-                except Exception as e:
-                    st.error(f"AI Error: {e}")
-    
-    # Option 3: Manual entry
-    st.markdown("**✏️ Option 3: Manual entry**")
+    # Option 2: Manual entry
+    st.markdown("**✏️ Option 2: Type or paste ingredients**")
     
     # Initialize recipe servings session state
     if "recipe_servings" not in st.session_state:
