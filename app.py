@@ -4031,39 +4031,36 @@ def dexcom_import_page():
     if st.session_state.dexcom_data:
         parsed_data = st.session_state.dexcom_data
 
-        # Check for existing duplicates
-        db = Session()
-        existing_count = 0
-        for record in parsed_data:
-            existing = db.query(GlucoseLog).filter(
-                GlucoseLog.user_id == st.session_state.user_id,
-                GlucoseLog.timestamp >= record['timestamp'] - timedelta(minutes=2),
-                GlucoseLog.timestamp <= record['timestamp'] + timedelta(minutes=2)
-            ).first()
-            if existing:
-                existing_count += 1
-        db.close()
-
-        if existing_count > 0:
-            st.warning(f"⚠️ Found {existing_count} readings that may already exist (within 2 minutes of existing data)")
-
         st.markdown("---")
+        st.write(f"**{len(parsed_data)} readings ready to import.** Duplicates will be skipped automatically.")
 
         if st.button("✅ Import Data", type="primary", key="import_dexcom_data_btn"):
             db = Session()
             imported_count = 0
             skipped_count = 0
+
+            # Batch-fetch existing timestamps for fast duplicate check
+            dates = [d['timestamp'] for d in parsed_data]
+            min_date = min(dates) - timedelta(minutes=2)
+            max_date = max(dates) + timedelta(minutes=2)
+            existing_rows = db.query(GlucoseLog.timestamp).filter(
+                GlucoseLog.user_id == st.session_state.user_id,
+                GlucoseLog.timestamp >= min_date,
+                GlucoseLog.timestamp <= max_date
+            ).all()
+            existing_timestamps = [r.timestamp for r in existing_rows]
+
             progress_bar = st.progress(0, text="Importing...")
 
             for i, record in enumerate(parsed_data):
                 try:
-                    existing = db.query(GlucoseLog).filter(
-                        GlucoseLog.user_id == st.session_state.user_id,
-                        GlucoseLog.timestamp >= record['timestamp'] - timedelta(minutes=2),
-                        GlucoseLog.timestamp <= record['timestamp'] + timedelta(minutes=2)
-                    ).first()
+                    # Check for duplicate (within 2 minutes) using in-memory list
+                    is_dup = any(
+                        abs((record['timestamp'] - et).total_seconds()) <= 120
+                        for et in existing_timestamps
+                    )
 
-                    if existing:
+                    if is_dup:
                         skipped_count += 1
                         continue
 
@@ -4085,13 +4082,14 @@ def dexcom_import_page():
                         timestamp=record['timestamp']
                     )
                     db.add(log)
+                    existing_timestamps.append(record['timestamp'])
                     imported_count += 1
 
                 except Exception:
                     skipped_count += 1
                     continue
 
-                if (i + 1) % 50 == 0 or i == len(parsed_data) - 1:
+                if (i + 1) % 100 == 0 or i == len(parsed_data) - 1:
                     progress_bar.progress((i + 1) / len(parsed_data), text=f"Importing... {i + 1}/{len(parsed_data)}")
 
             db.commit()
@@ -4102,7 +4100,6 @@ def dexcom_import_page():
             if skipped_count > 0:
                 st.info(f"ℹ️ Skipped {skipped_count} duplicate readings")
 
-            dates = [d['timestamp'] for d in parsed_data]
             if imported_count > 0:
                 st.success(f"📅 Data range: {min(dates).strftime('%Y-%m-%d %I:%M %p')} to {max(dates).strftime('%Y-%m-%d %I:%M %p')}")
 
