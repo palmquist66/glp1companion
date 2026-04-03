@@ -4353,10 +4353,11 @@ def main():
     else:
         # Top tab navigation
         st.markdown("---")
-        tab_dashboard, tab_ai, tab_health, tab_medication, tab_settings = st.tabs([
-            "📊 Dashboard", 
-            "🤖 AI Chat", 
-            "💪 Health", 
+        tab_dashboard, tab_ai, tab_health, tab_food, tab_medication, tab_settings = st.tabs([
+            "📊 Dashboard",
+            "🤖 AI Chat",
+            "💪 Health",
+            "🍎 Food",
             "💊 Medication",
             "⚙️ Settings"
         ])
@@ -4373,9 +4374,10 @@ def main():
             weight_page()
             st.markdown("---")
             glucose_page()
-            st.markdown("---")
+
+        with tab_food:
             food_page()
-        
+
         with tab_medication:
             medication_page()
             st.markdown("---")
