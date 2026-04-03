@@ -141,6 +141,9 @@ class FoodLog(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     name = Column(String, nullable=False)
     carbs = Column(Float)
+    protein = Column(Float)
+    fat = Column(Float)
+    calories = Column(Float)
     meal_type = Column(String)  # breakfast, lunch, dinner, snack
     notes = Column(Text)
     timestamp = Column(DateTime, default=datetime.now)
@@ -201,6 +204,15 @@ try:
         conn.commit()
 except:
     pass  # Column might already exist
+
+# Add nutrition columns to food_logs if they don't exist
+for col_name in ["protein", "fat", "calories"]:
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(f"ALTER TABLE food_logs ADD COLUMN {col_name} FLOAT"))
+            conn.commit()
+    except:
+        pass  # Column already exists
 
 # Create new tables if they don't exist (for Feature 1 & 2)
 from sqlalchemy import inspect
@@ -1308,6 +1320,9 @@ PROTEIN: [number]"""
                     user_id=st.session_state.user_id,
                     name=food_name,
                     carbs=estimated_carbs,
+                    protein=protein,
+                    fat=fat,
+                    calories=calories,
                     meal_type=meal_type.lower(),
                     notes=nutrition_info
                 )
@@ -1315,6 +1330,7 @@ PROTEIN: [number]"""
                 db.commit()
                 db.close()
                 st.session_state.ai_food_analysis = None
+                st.session_state.pop("pattern_insights_cache", None)
                 st.success(f"✅ Logged: {food_name} ({calories} cal, {estimated_carbs}g carbs, {protein}g protein, {fat}g fat)")
                 
                 # Show option to add another
@@ -1492,12 +1508,15 @@ If they mention multiple items, list them all and estimate total nutrition."""
                     st.error("Please enter a food name")
                 else:
                     nutrition_info = f"🎤 Voice | Cal: {calories} | C: {estimated_carbs}g | P: {protein}g | F: {fat}g"
-                    
+
                     db = Session()
                     log = FoodLog(
                         user_id=st.session_state.user_id,
                         name=food_name,
                         carbs=estimated_carbs,
+                        protein=protein,
+                        fat=fat,
+                        calories=calories,
                         meal_type=meal_type.lower(),
                         notes=nutrition_info
                     )
@@ -1506,6 +1525,7 @@ If they mention multiple items, list them all and estimate total nutrition."""
                     db.close()
                     st.session_state.voice_food_analysis = None
                     st.session_state.voice_form_submitted = False
+                    st.session_state.pop("pattern_insights_cache", None)
                     st.success(f"✅ Logged: {food_name} ({calories} cal, {estimated_carbs}g carbs)")
                     st.rerun()
         
@@ -1802,12 +1822,16 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                         user_id=st.session_state.user_id,
                         name=recipe_name,
                         carbs=logged_carbs,
+                        protein=logged_protein,
+                        fat=logged_fat,
+                        calories=logged_cal,
                         meal_type=meal_type.lower(),
                         notes=f"🧂 Recipe ({servings_eaten}/{nutrition['servings']} servings) | Cal: {logged_cal} | C: {logged_carbs}g | P: {logged_protein}g | F: {logged_fat}g"
                     )
                     db.add(log)
                     db.commit()
                     db.close()
+                    st.session_state.pop("pattern_insights_cache", None)
                     del st.session_state.recipe_nutrition
                     st.session_state.recipe_form_submitted = False
                     st.success(f"✅ Logged: {recipe_name} ({logged_cal} cal)")
@@ -1828,10 +1852,13 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
         with col1:
             name = st.text_input("Food Name")
             carbs = st.number_input("Carbs (g)", min_value=0.0, value=0.0, step=1.0)
+            calories = st.number_input("Calories", min_value=0, value=0, step=10)
         with col2:
             meal_type = st.selectbox("Meal Type", ["Breakfast", "Lunch", "Dinner", "Snack"])
+            protein = st.number_input("Protein (g)", min_value=0, value=0, step=5)
+            fat = st.number_input("Fat (g)", min_value=0, value=0, step=5)
         notes = st.text_area("Notes")
-        
+
         if st.form_submit_button("Log Food"):
             # Validate
             if not name.strip():
@@ -1842,6 +1869,9 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                     user_id=st.session_state.user_id,
                     name=name,
                     carbs=carbs,
+                    protein=protein,
+                    fat=fat,
+                    calories=calories,
                     meal_type=meal_type.lower(),
                     notes=notes
                 )
@@ -1849,6 +1879,7 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                 db.commit()
                 db.close()
                 st.session_state.food_saved = True
+                st.session_state.pop("pattern_insights_cache", None)
                 st.success("✅ Food logged!")
                 st.rerun()
     
@@ -3334,12 +3365,115 @@ def analyze_side_effect_dose_correlation(user_id):
         db.close()
 
 
+def analyze_food_protein_correlation(user_id):
+    """Task 3: Food protein ↔ weight trend correlation. Returns insight dicts."""
+    db = Session()
+    try:
+        cutoff = datetime.now() - timedelta(days=30)
+
+        food_logs = db.query(FoodLog).filter(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= cutoff,
+            FoodLog.protein.isnot(None),
+            FoodLog.protein > 0
+        ).all()
+
+        weight_logs = db.query(WeightLog).filter(
+            WeightLog.user_id == user_id,
+            WeightLog.timestamp >= cutoff
+        ).all()
+
+        if len(food_logs) < 5 or len(weight_logs) < 3:
+            return []
+
+        # Group daily protein totals
+        daily_protein = {}
+        for f in food_logs:
+            day = f.timestamp.date()
+            daily_protein[day] = daily_protein.get(day, 0) + (f.protein or 0)
+
+        if len(daily_protein) < 5:
+            return []
+
+        # Build weight lookup by date (use closest weight for each food day)
+        weight_by_date = {}
+        for w in weight_logs:
+            weight_by_date[w.timestamp.date()] = w.value
+
+        # Split days into high-protein vs low-protein using median
+        sorted_days = sorted(daily_protein.items(), key=lambda x: x[1])
+        mid = len(sorted_days) // 2
+        low_protein_days = sorted_days[:mid]
+        high_protein_days = sorted_days[mid:]
+
+        # For each group, find average weight in the 1-3 days following
+        def avg_weight_after(day_list):
+            weights = []
+            for day, _ in day_list:
+                for offset in range(1, 4):
+                    check = day + timedelta(days=offset)
+                    if check in weight_by_date:
+                        weights.append(weight_by_date[check])
+                        break
+            return sum(weights) / len(weights) if weights else None
+
+        avg_weight_high = avg_weight_after(high_protein_days)
+        avg_weight_low = avg_weight_after(low_protein_days)
+
+        if avg_weight_high is None or avg_weight_low is None:
+            return []
+
+        delta = avg_weight_low - avg_weight_high
+        avg_high_g = sum(g for _, g in high_protein_days) / len(high_protein_days)
+        avg_low_g = sum(g for _, g in low_protein_days) / len(low_protein_days)
+
+        insights = []
+
+        if abs(delta) >= 0.3:
+            if delta > 0:
+                text = (f"On days you hit {avg_high_g:.0f}g+ protein, your weight "
+                        f"trended {delta:.1f} lbs lower than {avg_low_g:.0f}g days")
+                insights.append({
+                    "text": text,
+                    "type": "positive",
+                    "priority": delta * 2,
+                    "category": "food_protein"
+                })
+            else:
+                text = (f"Higher protein days ({avg_high_g:.0f}g avg) showed "
+                        f"{abs(delta):.1f} lbs more weight than lower days — "
+                        f"may reflect meal size or timing")
+                insights.append({
+                    "text": text,
+                    "type": "neutral",
+                    "priority": abs(delta),
+                    "category": "food_protein"
+                })
+
+        # Daily protein consistency insight
+        protein_values = list(daily_protein.values())
+        avg_protein = sum(protein_values) / len(protein_values)
+        if avg_protein < 60:
+            text = (f"Your average daily protein is {avg_protein:.0f}g — "
+                    f"GLP-1 users benefit from 80-100g+ to preserve muscle during weight loss")
+            insights.append({
+                "text": text,
+                "type": "warning",
+                "priority": 3,
+                "category": "food_protein"
+            })
+
+        return insights
+    finally:
+        db.close()
+
+
 def get_pattern_insights(user_id, max_insights=3):
     """Orchestrator: merge all pattern analyzers, return top N insights."""
     all_insights = []
     all_insights.extend(analyze_weight_dose_correlation(user_id))
     all_insights.extend(analyze_side_effect_dose_correlation(user_id))
-    # Future analyzers slot in here (e.g., food-protein correlation)
+    all_insights.extend(analyze_food_protein_correlation(user_id))
 
     all_insights.sort(key=lambda x: x["priority"], reverse=True)
     return all_insights[:max_insights]
