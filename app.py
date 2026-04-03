@@ -1210,8 +1210,6 @@ def food_page():
                     image_type = uploaded_file.type if uploaded_file.type else "image/jpeg"
                     
                     # Call Anthropic Claude Vision API
-                    import anthropic
-                    
                     # Get API key from secrets or settings
                     api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                     if not api_key:
@@ -1545,8 +1543,7 @@ If multiple items are mentioned, list them all and estimate total nutrition."""
             with st.spinner("AI is reading the recipe..."):
                 try:
                     import base64
-                    import anthropic
-                    
+
                     image_bytes = recipe_image.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
@@ -1627,9 +1624,6 @@ If it's a nutrition label, extract all the information."""
             else:
                 with st.spinner("AI is calculating nutrition..."):
                     try:
-                        import re
-                        import anthropic
-                        
                         api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
                         if not api_key:
                             st.error("Add ANTHROPIC_API_KEY to Streamlit secrets!")
