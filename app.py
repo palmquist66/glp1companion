@@ -2566,9 +2566,15 @@ def settings_page():
             user.goal_weight = goal_weight
             user.target_protein = target_protein
             db.commit()
-            st.success("Settings saved!")
+            db.close()
             st.session_state.user_name = name
+            st.session_state.settings_saved = True
+            st.rerun()
         db.close()
+
+    if st.session_state.get("settings_saved"):
+        st.success("Settings saved!")
+        st.session_state.settings_saved = False
     
     # ========== PDF EXPORT SECTION ==========
     st.markdown("---")
