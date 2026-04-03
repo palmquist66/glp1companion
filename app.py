@@ -3997,21 +3997,24 @@ def dexcom_import_page():
                 st.error("❌ No valid glucose data found in the file.")
                 return
             
+            # Store parsed data in session state so it survives the rerun when Import is clicked
+            st.session_state.dexcom_data = parsed_data
+
             # Show preview
             preview_df = pd.DataFrame(parsed_data[:10])
             preview_df['timestamp'] = preview_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M')
-            
+
             st.subheader("👀 Data Preview (first 10 rows)")
             st.dataframe(preview_df, use_container_width=True)
-            
+
             # Show statistics
             st.subheader("📊 Import Summary")
-            
+
             dates = [d['timestamp'] for d in parsed_data]
             min_date = min(dates)
             max_date = max(dates)
             glucose_values = [d['glucose'] for d in parsed_data]
-            
+
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Valid Rows Found", len(parsed_data))
@@ -4019,105 +4022,94 @@ def dexcom_import_page():
                 st.metric("Date Range", f"{min_date.strftime('%m/%d')} - {max_date.strftime('%m/%d')}")
             with col3:
                 st.metric("Avg Glucose", f"{sum(glucose_values)/len(glucose_values):.0f} mg/dL")
-            
-            # Check for existing data in the date range
-            db = Session()
-            
-            # Find overlapping timestamps
-            existing_count = 0
-            duplicate_timestamps = []
-            
-            for record in parsed_data:
-                existing = db.query(GlucoseLog).filter(
-                    GlucoseLog.user_id == st.session_state.user_id,
-                    GlucoseLog.timestamp >= record['timestamp'] - timedelta(minutes=2),
-                    GlucoseLog.timestamp <= record['timestamp'] + timedelta(minutes=2)
-                ).first()
-                
-                if existing:
-                    existing_count += 1
-                    duplicate_timestamps.append(record['timestamp'])
-            
-            db.close()
-            
-            if existing_count > 0:
-                st.warning(f"⚠️ Found {existing_count} readings that may already exist (within 2 minutes of existing data)")
-            
-            # Import button - use key to avoid form conflicts
-            st.markdown("---")
-            
-            if st.button("✅ Import Data", type="primary", key="import_dexcom_data_btn"):
-                db = Session()
-                imported_count = 0
-                skipped_count = 0
-                
-                for record in parsed_data:
-                    try:
-                        # Check for duplicate (within 2 minutes)
-                        existing = db.query(GlucoseLog).filter(
-                            GlucoseLog.user_id == st.session_state.user_id,
-                            GlucoseLog.timestamp >= record['timestamp'] - timedelta(minutes=2),
-                            GlucoseLog.timestamp <= record['timestamp'] + timedelta(minutes=2)
-                        ).first()
-                        
-                        if existing:
-                            skipped_count += 1
-                            continue
-                        
-                        # Determine context based on time of day
-                        hour = record['timestamp'].hour
-                        if hour < 10:
-                            context = 'fasting'
-                        elif hour < 12:
-                            context = 'before_meal'
-                        elif hour < 17:
-                            context = 'after_meal'
-                        else:
-                            context = 'bedtime'
-                        
-                        # Build notes for import
-                        notes = "Imported from Dexcom Clarity"
-                        
-                        log = GlucoseLog(
-                            user_id=st.session_state.user_id,
-                            value=record['glucose'],
-                            context=context,
-                            notes=notes,
-                            timestamp=record['timestamp']
-                        )
-                        db.add(log)
-                        imported_count += 1
-                        
-                    except Exception as e:
-                        skipped_count += 1
-                        continue
-                
-                db.commit()
-                db.close()
-                
-                # Show results
-                st.success(f"✅ Successfully imported {imported_count} glucose readings!")
-                
-                if skipped_count > 0:
-                    st.info(f"ℹ️ Skipped {skipped_count} duplicate readings")
-                
-                # Show date range of imported data
-                if imported_count > 0:
-                    st.success(f"📅 Data range: {min_date.strftime('%Y-%m-%d %I:%M %p')} to {max_date.strftime('%Y-%m-%d %I:%M %p')}")
-                
-                # Clear session state
-                st.session_state.dexcom_preview = None
-                st.session_state.dexcom_data = None
-                
-                # Offer to view imported data
-                if st.button("📊 Go to Glucose Page", key="go_to_glucose_btn"):
-                    st.session_state.pending_glucose_view = True
-                    st.rerun()
         
         except Exception as e:
             st.error(f"❌ Error reading file: {str(e)}")
             st.info("Please make sure your file is a valid CSV format.")
     
+    # Import button — outside the file_uploader block so it works after rerun
+    if st.session_state.dexcom_data:
+        parsed_data = st.session_state.dexcom_data
+
+        # Check for existing duplicates
+        db = Session()
+        existing_count = 0
+        for record in parsed_data:
+            existing = db.query(GlucoseLog).filter(
+                GlucoseLog.user_id == st.session_state.user_id,
+                GlucoseLog.timestamp >= record['timestamp'] - timedelta(minutes=2),
+                GlucoseLog.timestamp <= record['timestamp'] + timedelta(minutes=2)
+            ).first()
+            if existing:
+                existing_count += 1
+        db.close()
+
+        if existing_count > 0:
+            st.warning(f"⚠️ Found {existing_count} readings that may already exist (within 2 minutes of existing data)")
+
+        st.markdown("---")
+
+        if st.button("✅ Import Data", type="primary", key="import_dexcom_data_btn"):
+            db = Session()
+            imported_count = 0
+            skipped_count = 0
+            progress_bar = st.progress(0, text="Importing...")
+
+            for i, record in enumerate(parsed_data):
+                try:
+                    existing = db.query(GlucoseLog).filter(
+                        GlucoseLog.user_id == st.session_state.user_id,
+                        GlucoseLog.timestamp >= record['timestamp'] - timedelta(minutes=2),
+                        GlucoseLog.timestamp <= record['timestamp'] + timedelta(minutes=2)
+                    ).first()
+
+                    if existing:
+                        skipped_count += 1
+                        continue
+
+                    hour = record['timestamp'].hour
+                    if hour < 10:
+                        context = 'fasting'
+                    elif hour < 12:
+                        context = 'before_meal'
+                    elif hour < 17:
+                        context = 'after_meal'
+                    else:
+                        context = 'bedtime'
+
+                    log = GlucoseLog(
+                        user_id=st.session_state.user_id,
+                        value=record['glucose'],
+                        context=context,
+                        notes="Imported from Dexcom Clarity",
+                        timestamp=record['timestamp']
+                    )
+                    db.add(log)
+                    imported_count += 1
+
+                except Exception:
+                    skipped_count += 1
+                    continue
+
+                if (i + 1) % 50 == 0 or i == len(parsed_data) - 1:
+                    progress_bar.progress((i + 1) / len(parsed_data), text=f"Importing... {i + 1}/{len(parsed_data)}")
+
+            db.commit()
+            db.close()
+            progress_bar.empty()
+
+            st.success(f"✅ Successfully imported {imported_count} glucose readings!")
+            if skipped_count > 0:
+                st.info(f"ℹ️ Skipped {skipped_count} duplicate readings")
+
+            dates = [d['timestamp'] for d in parsed_data]
+            if imported_count > 0:
+                st.success(f"📅 Data range: {min(dates).strftime('%Y-%m-%d %I:%M %p')} to {max(dates).strftime('%Y-%m-%d %I:%M %p')}")
+
+            # Clear session state
+            st.session_state.dexcom_data = None
+            st.session_state.dexcom_preview = None
+
     # Instructions
     st.markdown("---")
     with st.expander("📋 How to export from Dexcom Clarity"):
