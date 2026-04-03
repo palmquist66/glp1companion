@@ -1183,18 +1183,17 @@ def food_page():
     # Photo food logging with AI
     st.subheader("📸 Snap & AI Log")
     
-    # Check if we should show camera
-    if "show_camera" not in st.session_state:
-        st.session_state.show_camera = True
-    
-    if st.session_state.show_camera:
-        # Camera input for photo
+    # Camera is off by default to avoid getUserMedia conflicts with audio_input
+    use_camera = st.checkbox("Open camera to snap a photo", key="use_food_camera")
+    if use_camera:
         uploaded_file = st.camera_input("Take a photo of your food")
-    
+    else:
+        uploaded_file = None
+
     # Session state for AI analysis results
     if "ai_food_analysis" not in st.session_state:
         st.session_state.ai_food_analysis = None
-    
+
     if uploaded_file is not None:
         st.image(uploaded_file, caption="Your meal", use_container_width=True)
         
@@ -1361,7 +1360,6 @@ PROTEIN: [number]"""
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("📸 Log Another Food", key="log_another_food"):
-                        st.session_state.show_camera = True
                         st.session_state.ai_food_analysis = None
                         st.rerun()
                 with col2:
@@ -1371,7 +1369,6 @@ PROTEIN: [number]"""
         
         if st.button("🗑️ Clear / Start Over", key="clear_food_btn"):
             st.session_state.ai_food_analysis = None
-            st.session_state.show_camera = True
             st.rerun()
     
     st.markdown("---")
@@ -1571,15 +1568,13 @@ If they mention multiple items, list them all and estimate total nutrition."""
     # Option 1: Photo of recipe/ingredients (camera or upload)
     st.markdown("**📸 Option 1: Upload or snap recipe photo**")
     
-    # Two columns: upload and camera
-    col1, col2 = st.columns(2)
-    with col1:
-        # File uploader for screenshots/downloads
-        uploaded_recipe = st.file_uploader("Upload recipe screenshot", type=["png", "jpg", "jpeg"])
-    with col2:
-        # Camera input
-        recipe_photo = st.camera_input("Or snap a photo")
-    
+    uploaded_recipe = st.file_uploader("Upload recipe screenshot", type=["png", "jpg", "jpeg"])
+    use_recipe_camera = st.checkbox("Or open camera to snap a photo", key="use_recipe_camera")
+    if use_recipe_camera:
+        recipe_photo = st.camera_input("Snap recipe photo")
+    else:
+        recipe_photo = None
+
     # Use whichever was provided
     recipe_image = uploaded_recipe or recipe_photo
     
