@@ -731,6 +731,8 @@ def login_page():
             if check_password(password, user.password_hash):
                 st.session_state.user_id = user.id
                 st.session_state.user_name = user.name
+                st.session_state.target_glucose_min = user.target_glucose_min or 80
+                st.session_state.target_glucose_max = user.target_glucose_max or 130
                 db.close()
                 st.rerun()
             else:
@@ -1087,12 +1089,9 @@ def glucose_page():
                      markers=True, color_discrete_sequence=["#10b981"])
         fig.update_xaxes(title_text="Time")
         fig.update_yaxes(title_text="Glucose (mg/dL)")
-        # Use user's target settings
-        db_user = Session()
-        user = db_user.query(User).filter(User.id == st.session_state.user_id).first()
-        target_max = user.target_glucose_max if user and user.target_glucose_max else 130
-        target_min = user.target_glucose_min if user and user.target_glucose_min else 80
-        db_user.close()
+        # Use user's target settings from session state
+        target_max = st.session_state.get("target_glucose_max", 130)
+        target_min = st.session_state.get("target_glucose_min", 80)
         fig.add_hline(y=target_max, line_dash="dash", line_color="yellow", annotation=dict(text=f"Target Max ({target_max})"))
         fig.add_hline(y=target_min, line_dash="dash", line_color="green", annotation=dict(text=f"Target Min ({target_min})"))
         st.plotly_chart(fig, use_container_width=True, config=get_chart_config())
@@ -2568,6 +2567,8 @@ def settings_page():
             db.commit()
             db.close()
             st.session_state.user_name = name
+            st.session_state.target_glucose_min = target_min
+            st.session_state.target_glucose_max = target_max
             st.session_state.settings_saved = True
             st.rerun()
         db.close()
