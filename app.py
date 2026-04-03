@@ -4096,16 +4096,28 @@ def dexcom_import_page():
             db.close()
             progress_bar.empty()
 
-            st.success(f"✅ Successfully imported {imported_count} glucose readings!")
-            if skipped_count > 0:
-                st.info(f"ℹ️ Skipped {skipped_count} duplicate readings")
+            # Store results in session state, then rerun so all tabs see the new data
+            st.session_state.dexcom_import_result = {
+                "imported": imported_count,
+                "skipped": skipped_count,
+                "min_date": min(dates).strftime('%Y-%m-%d %I:%M %p'),
+                "max_date": max(dates).strftime('%Y-%m-%d %I:%M %p')
+            }
 
-            if imported_count > 0:
-                st.success(f"📅 Data range: {min(dates).strftime('%Y-%m-%d %I:%M %p')} to {max(dates).strftime('%Y-%m-%d %I:%M %p')}")
-
-            # Clear session state
+            # Clear import state
             st.session_state.dexcom_data = None
             st.session_state.dexcom_preview = None
+            st.rerun()
+
+    # Show import results after rerun
+    if st.session_state.get("dexcom_import_result"):
+        result = st.session_state.dexcom_import_result
+        st.success(f"✅ Successfully imported {result['imported']} glucose readings!")
+        if result['skipped'] > 0:
+            st.info(f"ℹ️ Skipped {result['skipped']} duplicate readings")
+        if result['imported'] > 0:
+            st.success(f"📅 Data range: {result['min_date']} to {result['max_date']}")
+        st.session_state.dexcom_import_result = None
 
     # Instructions
     st.markdown("---")
