@@ -98,6 +98,7 @@ class User(Base):
     target_glucose_min = Column(Integer, default=80)
     target_glucose_max = Column(Integer, default=130)
     goal_weight = Column(Float)
+    target_protein = Column(Float)
     start_date = Column(DateTime, default=datetime.now)
     
     glucose_logs = relationship("GlucoseLog", back_populates="user")
@@ -204,6 +205,14 @@ try:
         conn.commit()
 except:
     pass  # Column might already exist
+
+# Add target_protein column to users if it doesn't exist
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN target_protein FLOAT"))
+        conn.commit()
+except:
+    pass  # Column already exists
 
 # Add nutrition columns to food_logs if they don't exist
 for col_name in ["protein", "fat", "calories"]:
@@ -916,9 +925,22 @@ def dashboard():
     
     with col4:
         st.metric("GLP-1", user.glp1_medication or "Not set")
-    
+
+    # Protein progress bar
+    protein_logs = [f for f in food_today if f.protein is not None]
+    if protein_logs:
+        total_protein = sum(f.protein or 0 for f in food_today)
+        target = user.target_protein or 100
+        ratio = min(total_protein / target, 1.0) if target > 0 else 0.0
+        label = f"\U0001f969 Protein: {total_protein:.0f}g / {target:.0f}g"
+        if ratio >= 1.0:
+            st.success(label)
+        else:
+            st.info(label)
+        st.progress(ratio)
+
     st.markdown("---")
-    
+
     # Quick actions
     st.subheader("⚡ Quick Log")
     c1, c2, c3, c4 = st.columns(4)
@@ -987,7 +1009,9 @@ def dashboard():
         for w in weight_today:
             activities.append({"time": w.timestamp, "type": "⚖️ Weight", "value": f"{w.value} lbs"})
         for f in food_today:
-            activities.append({"time": f.timestamp, "type": "🍎 Food", "value": f"{f.name} ({f.carbs}g carbs)"})
+            cal = f"{f.calories:.0f} cal, " if f.calories else ""
+            pro = f"{f.protein:.0f}g protein" if f.protein else f"{f.carbs}g carbs"
+            activities.append({"time": f.timestamp, "type": "🍎 Food", "value": f"{f.name} ({cal}{pro})"})
         
         activities.sort(key=lambda x: x["time"], reverse=True)
         
@@ -2643,7 +2667,8 @@ def settings_page():
             target_max = st.number_input("Target Glucose Max", value=user.target_glucose_max or 130)
         
         goal_weight = st.number_input("Goal Weight (lbs)", value=user.goal_weight or 170.0, step=0.1)
-        
+        target_protein = st.number_input("Daily Protein Target (g)", value=user.target_protein or 100.0, min_value=0.0, step=5.0)
+
         if st.form_submit_button("Save Settings"):
             user.name = name
             user.glp1_medication = glp1_med
@@ -2652,6 +2677,7 @@ def settings_page():
             user.target_glucose_min = target_min
             user.target_glucose_max = target_max
             user.goal_weight = goal_weight
+            user.target_protein = target_protein
             db.commit()
             st.success("Settings saved!")
             st.session_state.user_name = name
