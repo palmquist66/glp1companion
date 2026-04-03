@@ -1087,8 +1087,14 @@ def glucose_page():
                      markers=True, color_discrete_sequence=["#10b981"])
         fig.update_xaxes(title_text="Time")
         fig.update_yaxes(title_text="Glucose (mg/dL)")
-        fig.add_hline(y=130, line_dash="dash", line_color="yellow", annotation=dict(text="Target Max"))
-        fig.add_hline(y=80, line_dash="dash", line_color="green", annotation=dict(text="Target Min"))
+        # Use user's target settings
+        db_user = Session()
+        user = db_user.query(User).filter(User.id == st.session_state.user_id).first()
+        target_max = user.target_glucose_max if user and user.target_glucose_max else 130
+        target_min = user.target_glucose_min if user and user.target_glucose_min else 80
+        db_user.close()
+        fig.add_hline(y=target_max, line_dash="dash", line_color="yellow", annotation=dict(text=f"Target Max ({target_max})"))
+        fig.add_hline(y=target_min, line_dash="dash", line_color="green", annotation=dict(text=f"Target Min ({target_min})"))
         st.plotly_chart(fig, use_container_width=True, config=get_chart_config())
         
         # Table with formatted time
