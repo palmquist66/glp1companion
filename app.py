@@ -1476,7 +1476,7 @@ If multiple items are mentioned, list them all and estimate total nutrition."""
                 protein = st.number_input("Protein (g)", min_value=0, value=int(st.session_state.get("voice_food_protein", 0)), step=5)
                 fat = st.number_input("Fat (g)", min_value=0, value=int(st.session_state.get("voice_food_fat", 0)), step=5)
             
-            notes = st.text_area("Notes", value="🎤 Voice logged")
+            notes = st.text_area("Notes", value="⚡ Quick logged")
             
             if st.form_submit_button("✅ Log Food"):
                 # Validate
