@@ -1202,7 +1202,6 @@ def food_page():
             with st.spinner("AI is analyzing your food..."):
                 try:
                     # Convert image to base64
-                    import base64
                     image_bytes = uploaded_file.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
@@ -1259,8 +1258,6 @@ PROTEIN: [number]"""
                     notes = ""
                     
                     # Try to find each field - more flexible regex
-                    import re
-                    
                     # FOOD - look for "FOOD:" or just take first line
                     food_match = re.search(r'FOOD:\s*(.+?)(?:\n|CALORIES|$)', ai_text, re.IGNORECASE)
                     if food_match:
@@ -1542,8 +1539,6 @@ If multiple items are mentioned, list them all and estimate total nutrition."""
         if st.button("🤖 Extract Ingredients from Photo", key="extract_recipe_photo_btn"):
             with st.spinner("AI is reading the recipe..."):
                 try:
-                    import base64
-
                     image_bytes = recipe_image.getvalue()
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
