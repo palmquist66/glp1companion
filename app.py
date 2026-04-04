@@ -1070,8 +1070,12 @@ def glucose_page():
     logs = db.query(GlucoseLog).filter(
         GlucoseLog.user_id == st.session_state.user_id
     ).order_by(GlucoseLog.timestamp.desc()).limit(30).all()
+    # Fetch user's target settings from DB (source of truth) in the same session
+    target_user = db.query(User).filter(User.id == st.session_state.user_id).first()
+    target_max = (target_user.target_glucose_max if target_user and target_user.target_glucose_max else 130)
+    target_min = (target_user.target_glucose_min if target_user and target_user.target_glucose_min else 80)
     db.close()
-    
+
     if logs:
         data = []
         for log in logs:
@@ -1080,18 +1084,15 @@ def glucose_page():
                 "Glucose": log.value,
                 "Context": log.context
             })
-        
+
         df = pd.DataFrame(data)
         df = df.sort_values("Time")  # Ensure sorted by time
-        
+
         # Chart
-        fig = px.line(df, x="Time", y="Glucose", title="Glucose Trend (All Readings)", 
+        fig = px.line(df, x="Time", y="Glucose", title="Glucose Trend (All Readings)",
                      markers=True, color_discrete_sequence=["#10b981"])
         fig.update_xaxes(title_text="Time")
         fig.update_yaxes(title_text="Glucose (mg/dL)")
-        # Use user's target settings from session state
-        target_max = st.session_state.get("target_glucose_max", 130)
-        target_min = st.session_state.get("target_glucose_min", 80)
         fig.add_hline(y=target_max, line_dash="dash", line_color="yellow", annotation=dict(text=f"Target Max ({target_max})"))
         fig.add_hline(y=target_min, line_dash="dash", line_color="green", annotation=dict(text=f"Target Min ({target_min})"))
         st.plotly_chart(fig, use_container_width=True, config=get_chart_config())
