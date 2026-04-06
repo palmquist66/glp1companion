@@ -999,6 +999,71 @@ def dashboard():
         else:
             st.info("📊 Start logging medications and health data to unlock pattern insights.")
 
+    # Export for Doctor button — one-tap, 30-day window
+    st.markdown("---")
+    st.subheader("📋 Export for My Doctor")
+
+    if st.button("📥 Export for My Doctor", type="primary", key="dashboard_export"):
+        with st.spinner("Building your report with charts and insights..."):
+            try:
+                db_export = Session()
+                user_export = db_export.query(User).filter(User.id == st.session_state.user_id).first()
+                export_start = datetime.now() - timedelta(days=30)
+
+                export_glucose = db_export.query(GlucoseLog).filter(
+                    GlucoseLog.user_id == st.session_state.user_id,
+                    GlucoseLog.timestamp >= export_start
+                ).order_by(GlucoseLog.timestamp.desc()).all()
+
+                export_weight = db_export.query(WeightLog).filter(
+                    WeightLog.user_id == st.session_state.user_id,
+                    WeightLog.timestamp >= export_start
+                ).order_by(WeightLog.timestamp.desc()).all()
+
+                export_meds = db_export.query(MedicationLog).filter(
+                    MedicationLog.user_id == st.session_state.user_id,
+                    MedicationLog.timestamp >= export_start
+                ).order_by(MedicationLog.timestamp.desc()).all()
+
+                export_side_effects = db_export.query(SideEffect).filter(
+                    SideEffect.user_id == st.session_state.user_id,
+                    SideEffect.timestamp >= export_start
+                ).order_by(SideEffect.timestamp.desc()).all()
+
+                export_food = db_export.query(FoodLog).filter(
+                    FoodLog.user_id == st.session_state.user_id,
+                    FoodLog.timestamp >= export_start
+                ).order_by(FoodLog.timestamp.desc()).all()
+
+                db_export.close()
+
+                # Get all pattern insights (uncapped) and dose changes
+                export_patterns = get_pattern_insights(st.session_state.user_id, max_insights=50)
+                export_dose_changes = detect_dose_changes(st.session_state.user_id, lookback_days=30)
+
+                pdf_bytes = generate_health_report(
+                    user=user_export,
+                    glucose_logs=export_glucose,
+                    weight_logs=export_weight,
+                    medication_logs=export_meds,
+                    side_effects=export_side_effects,
+                    date_range_days=30,
+                    food_logs=export_food,
+                    pattern_insights=export_patterns,
+                    dose_changes=export_dose_changes
+                )
+
+                filename = f"GLP1Companion_Doctor_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
+                st.download_button(
+                    label="📥 Download Report",
+                    data=pdf_bytes.getvalue(),
+                    file_name=filename,
+                    mime="application/pdf"
+                )
+                st.success("Report ready! Click above to download.")
+            except Exception as e:
+                st.error(f"Error generating report: {str(e)}")
+
     # Recent activity
     st.markdown("---")
     st.subheader("📝 Recent Activity")
@@ -2640,9 +2705,18 @@ def settings_page():
                     SideEffect.user_id == st.session_state.user_id,
                     SideEffect.timestamp >= start_date
                 ).order_by(SideEffect.timestamp.desc()).all()
-                
+
+                food_logs = db.query(FoodLog).filter(
+                    FoodLog.user_id == st.session_state.user_id,
+                    FoodLog.timestamp >= start_date
+                ).order_by(FoodLog.timestamp.desc()).all()
+
                 db.close()
-                
+
+                # Get pattern insights and dose changes
+                settings_patterns = get_pattern_insights(st.session_state.user_id, max_insights=50)
+                settings_dose_changes = detect_dose_changes(st.session_state.user_id, lookback_days=days)
+
                 # Validate data and warn about empty datasets
                 data_warnings = []
                 if not glucose_logs:
@@ -2653,14 +2727,14 @@ def settings_page():
                     data_warnings.append("No medication logs found in the selected period")
                 if not side_effects:
                     data_warnings.append("No side effects reported in the selected period")
-                
+
                 # Show warnings if no data found
                 if data_warnings:
                     with st.expander("⚠️ Data Warnings - Click to see"):
                         for warning in data_warnings:
                             st.write(f"• {warning}")
                         st.info("💡 Tip: Log some data before generating a report for more useful results.")
-                
+
                 # Generate PDF
                 try:
                     pdf_bytes = generate_health_report(
@@ -2669,7 +2743,10 @@ def settings_page():
                         weight_logs=weight_logs,
                         medication_logs=medication_logs,
                         side_effects=side_effects,
-                        date_range_days=days
+                        date_range_days=days,
+                        food_logs=food_logs,
+                        pattern_insights=settings_patterns,
+                        dose_changes=settings_dose_changes
                     )
                 except Exception as pdf_error:
                     st.error(f"❌ Failed to generate PDF: {pdf_error}")
