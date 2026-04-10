@@ -193,6 +193,27 @@ class MedicationReminder(Base):
     last_reminder_sent = Column(DateTime)
     created_at = Column(DateTime, default=datetime.now)
 
+# Feature 3: Titration Schedule - tracks dose escalation over time
+class TitrationSchedule(Base):
+    __tablename__ = "titration_schedules"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    medication = Column(String, nullable=False)
+    dose_level = Column(String, nullable=False)     # "0.25mg", "0.5mg", etc.
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime)                      # NULL = current/planned
+    status = Column(String, default="planned")       # planned, active, completed
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.now)
+
+# Feature 4: Injection Site Rotation - tracks where user injects
+class InjectionSite(Base):
+    __tablename__ = "injection_sites"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    site = Column(String, nullable=False)            # abdomen_left, abdomen_right, thigh_left, thigh_right, arm_left, arm_right
+    timestamp = Column(DateTime, default=datetime.now)
+
 # Create tables
 Base.metadata.create_all(engine)
 
@@ -1974,190 +1995,551 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
 # =============================================================================
 # MEDICATION PAGE
 # =============================================================================
+def glp1_cycle_tracker(user, db):
+    """GLP-1 cycle countdown, progress bar, and dose logging with injection site."""
+    st.subheader("💉 GLP-1 Cycle Tracker")
+
+    if not user.glp1_medication:
+        st.info("No GLP-1 medication set. Go to **Settings** to add your medication.")
+        return
+
+    # Current medication + dosage
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Medication", user.glp1_medication)
+    with col2:
+        st.metric("Current Dose", user.glp1_dosage or "Not set")
+
+    # Get last GLP-1 log
+    last_glp1 = db.query(MedicationLog).filter(
+        MedicationLog.user_id == user.id,
+        MedicationLog.medication.like(f"%{user.glp1_medication.split('(')[0].strip().split()[0]}%"),
+        MedicationLog.taken == 1
+    ).order_by(MedicationLog.timestamp.desc()).first()
+
+    if last_glp1:
+        next_dose = last_glp1.timestamp + timedelta(days=7)
+        now = datetime.now()
+        days_elapsed = (now - last_glp1.timestamp).days
+        hours_elapsed = (now - last_glp1.timestamp).total_seconds() / 3600
+        days_until = (next_dose - now).days
+        hours_until = (next_dose - now).total_seconds() / 3600
+
+        # Progress bar: day X of 7
+        progress = min(days_elapsed / 7.0, 1.0)
+        st.markdown(f"**Day {min(days_elapsed + 1, 7)} of 7** — Last dose: {last_glp1.timestamp.strftime('%A, %b %d')}")
+        st.progress(progress)
+
+        if days_until >= 1:
+            st.info(f"Next dose in **{days_until} day{'s' if days_until != 1 else ''}** ({next_dose.strftime('%A, %b %d')})")
+        elif hours_until > 0:
+            st.info(f"Next dose in **{int(hours_until)} hours** ({next_dose.strftime('%A, %b %d at %I:%M %p')})")
+        else:
+            overdue_days = abs(days_until)
+            st.warning(f"**Dose overdue by {overdue_days} day{'s' if overdue_days != 1 else ''}!** Last dose was {last_glp1.timestamp.strftime('%A, %b %d')}.")
+
+        # Weeks on current dose
+        logs_at_current_dose = db.query(MedicationLog).filter(
+            MedicationLog.user_id == user.id,
+            MedicationLog.medication.like(f"%{user.glp1_medication.split('(')[0].strip().split()[0]}%"),
+            MedicationLog.dosage == user.glp1_dosage,
+            MedicationLog.taken == 1
+        ).count()
+        if logs_at_current_dose > 0:
+            st.caption(f"📊 {logs_at_current_dose} dose{'s' if logs_at_current_dose != 1 else ''} logged at {user.glp1_dosage or 'current dosage'}")
+    else:
+        st.info(f"No doses logged yet for {user.glp1_medication}. Log your first dose below!")
+
+    # Log Today's Dose button + injection site
+    st.markdown("---")
+
+    # Check if already logged today
+    today_start = datetime.combine(date.today(), datetime.min.time())
+    logged_today = db.query(MedicationLog).filter(
+        MedicationLog.user_id == user.id,
+        MedicationLog.medication.like(f"%{user.glp1_medication.split('(')[0].strip().split()[0]}%"),
+        MedicationLog.taken == 1,
+        MedicationLog.timestamp >= today_start
+    ).first()
+
+    if logged_today:
+        st.success(f"✅ Today's dose already logged at {logged_today.timestamp.strftime('%I:%M %p')}")
+    else:
+        SITE_OPTIONS = {
+            "abdomen_left": "Abdomen (Left)",
+            "abdomen_right": "Abdomen (Right)",
+            "thigh_left": "Thigh (Left)",
+            "thigh_right": "Thigh (Right)",
+            "arm_left": "Upper Arm (Left)",
+            "arm_right": "Upper Arm (Right)",
+        }
+
+        # Get least recently used site for recommendation
+        recent_sites = db.query(InjectionSite).filter(
+            InjectionSite.user_id == user.id
+        ).order_by(InjectionSite.timestamp.desc()).limit(6).all()
+        used_sites = [s.site for s in recent_sites]
+        recommended = None
+        for site_key in SITE_OPTIONS:
+            if site_key not in used_sites:
+                recommended = site_key
+                break
+        if not recommended:
+            recommended = recent_sites[-1].site if recent_sites else "abdomen_left"
+
+        site_labels = list(SITE_OPTIONS.values())
+        site_keys = list(SITE_OPTIONS.keys())
+        default_idx = site_keys.index(recommended) if recommended in site_keys else 0
+
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            selected_site = st.selectbox(
+                "Injection Site",
+                site_labels,
+                index=default_idx,
+                key="glp1_injection_site",
+                help=f"Recommended: {SITE_OPTIONS.get(recommended, 'Abdomen (Left)')} (least recently used)"
+            )
+        with col2:
+            st.write("")
+            st.write("")
+            if st.button("💉 Log Today's Dose", key="log_glp1_dose", type="primary"):
+                # Log the medication
+                log = MedicationLog(
+                    user_id=user.id,
+                    medication=user.glp1_medication,
+                    dosage=user.glp1_dosage,
+                    taken=1,
+                    timestamp=datetime.now()
+                )
+                db.add(log)
+
+                # Log injection site
+                selected_key = site_keys[site_labels.index(selected_site)]
+                site_log = InjectionSite(
+                    user_id=user.id,
+                    site=selected_key,
+                    timestamp=datetime.now()
+                )
+                db.add(site_log)
+
+                # Update medication history
+                existing_hist = db.query(MedicationHistory).filter(
+                    MedicationHistory.user_id == user.id,
+                    MedicationHistory.medication == user.glp1_medication,
+                    MedicationHistory.dosage == user.glp1_dosage
+                ).first()
+                if existing_hist:
+                    existing_hist.last_used = datetime.now()
+                    existing_hist.use_count += 1
+                else:
+                    hist = MedicationHistory(
+                        user_id=user.id,
+                        medication=user.glp1_medication,
+                        dosage=user.glp1_dosage,
+                        last_used=datetime.now(),
+                        use_count=1
+                    )
+                    db.add(hist)
+
+                db.commit()
+                st.session_state.pop("pattern_insights_cache", None)
+                st.success(f"✅ Logged {user.glp1_medication} ({user.glp1_dosage}) — {selected_site}")
+                st.rerun()
+
+
+def titration_schedule_section(user, db):
+    """Visual timeline of dose escalation with add/edit capability."""
+    if not user.glp1_medication:
+        st.info("Set your GLP-1 medication in Settings to use titration tracking.")
+        return
+
+    # Standard titration templates
+    TITRATION_TEMPLATES = {
+        "Ozempic (semaglutide)": ["0.25mg", "0.5mg", "1mg", "2mg"],
+        "Wegovy (semaglutide)": ["0.25mg", "0.5mg", "1mg", "1.7mg", "2.4mg"],
+        "Mounjaro (tirzepatide)": ["2.5mg", "5mg", "7.5mg", "10mg", "12.5mg", "15mg"],
+        "Zepbound (tirzepatide)": ["2.5mg", "5mg", "7.5mg", "10mg", "12.5mg", "15mg"],
+        "Trulicity (dulaglutide)": ["0.75mg", "1.5mg", "3mg", "4.5mg"],
+        "Victoza (liraglutide)": ["0.6mg", "1.2mg", "1.8mg"],
+        "Saxenda (liraglutide)": ["0.6mg", "1.2mg", "1.8mg", "2.4mg", "3mg"],
+    }
+
+    # Get existing titration entries
+    schedules = db.query(TitrationSchedule).filter(
+        TitrationSchedule.user_id == user.id,
+        TitrationSchedule.medication == user.glp1_medication
+    ).order_by(TitrationSchedule.start_date).all()
+
+    if schedules:
+        # Visual timeline
+        for i, sched in enumerate(schedules):
+            if sched.status == "completed":
+                icon = "✅"
+                color = ""
+                date_range = f"{sched.start_date.strftime('%b %d')} — {sched.end_date.strftime('%b %d') if sched.end_date else 'ongoing'}"
+            elif sched.status == "active":
+                icon = "🔵"
+                color = "**"
+                weeks_on = (datetime.now() - sched.start_date).days // 7
+                date_range = f"Started {sched.start_date.strftime('%b %d')} ({weeks_on} week{'s' if weeks_on != 1 else ''} on this dose)"
+            else:  # planned
+                icon = "⬜"
+                color = ""
+                date_range = f"Planned: {sched.start_date.strftime('%b %d')}"
+
+            st.markdown(f"{icon} {color}{sched.dose_level}{color} — {date_range}")
+            if sched.notes:
+                st.caption(f"   📝 {sched.notes}")
+    else:
+        st.info("No titration schedule yet. Add your first dose step or auto-build from your logs.")
+
+        # Auto-build from existing medication logs
+        existing_doses = db.query(MedicationLog.dosage, MedicationLog.timestamp).filter(
+            MedicationLog.user_id == user.id,
+            MedicationLog.medication.like(f"%{user.glp1_medication.split('(')[0].strip().split()[0]}%"),
+            MedicationLog.taken == 1,
+            MedicationLog.dosage.isnot(None)
+        ).order_by(MedicationLog.timestamp).all()
+
+        if existing_doses:
+            # Group by dose changes
+            dose_periods = []
+            current_dose = None
+            period_start = None
+            for dose_log in existing_doses:
+                if dose_log.dosage != current_dose:
+                    if current_dose is not None:
+                        dose_periods.append((current_dose, period_start, dose_log.timestamp))
+                    current_dose = dose_log.dosage
+                    period_start = dose_log.timestamp
+            if current_dose:
+                dose_periods.append((current_dose, period_start, None))
+
+            if len(dose_periods) >= 1 and st.button("🔄 Auto-Build from Log History", key="auto_build_titration"):
+                for i, (dose, start, end) in enumerate(dose_periods):
+                    status = "active" if end is None else "completed"
+                    entry = TitrationSchedule(
+                        user_id=user.id,
+                        medication=user.glp1_medication,
+                        dose_level=dose,
+                        start_date=start,
+                        end_date=end,
+                        status=status
+                    )
+                    db.add(entry)
+                db.commit()
+                st.success(f"✅ Built titration schedule from {len(dose_periods)} dose period(s)")
+                st.rerun()
+
+    # Add next dose step
+    st.markdown("---")
+    st.markdown("**Add Dose Step**")
+
+    # Suggest doses from template if available
+    med_key = user.glp1_medication
+    template_doses = TITRATION_TEMPLATES.get(med_key, [])
+
+    with st.form("add_titration_step", clear_on_submit=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if template_doses:
+                dose_level = st.selectbox("Dose", template_doses + ["Other"], key="titration_dose_select")
+                if dose_level == "Other":
+                    dose_level = st.text_input("Custom dose", key="titration_dose_custom")
+            else:
+                dose_level = st.text_input("Dose", placeholder="e.g., 0.5mg", key="titration_dose_input")
+        with col2:
+            start_date = st.date_input("Start Date", value=date.today(), key="titration_start")
+        with col3:
+            status = st.selectbox("Status", ["planned", "active", "completed"], index=0, key="titration_status")
+
+        notes = st.text_input("Notes (optional)", placeholder="e.g., Tolerated well", key="titration_notes")
+
+        if st.form_submit_button("➕ Add Step"):
+            if dose_level:
+                # If setting a new step as active, mark previous active as completed
+                if status == "active":
+                    prev_active = db.query(TitrationSchedule).filter(
+                        TitrationSchedule.user_id == user.id,
+                        TitrationSchedule.medication == user.glp1_medication,
+                        TitrationSchedule.status == "active"
+                    ).first()
+                    if prev_active:
+                        prev_active.status = "completed"
+                        prev_active.end_date = datetime.combine(start_date, datetime.min.time())
+
+                entry = TitrationSchedule(
+                    user_id=user.id,
+                    medication=user.glp1_medication,
+                    dose_level=dose_level,
+                    start_date=datetime.combine(start_date, datetime.min.time()),
+                    status=status,
+                    notes=notes if notes else None
+                )
+                db.add(entry)
+                db.commit()
+                st.success(f"✅ Added {dose_level} ({status})")
+                st.rerun()
+            else:
+                st.error("Please enter a dose level")
+
+
+def injection_site_section(user, db):
+    """Grid showing 6 injection sites with rotation tracking."""
+    SITES = {
+        "abdomen_left": "Abdomen (L)",
+        "abdomen_right": "Abdomen (R)",
+        "thigh_left": "Thigh (L)",
+        "thigh_right": "Thigh (R)",
+        "arm_left": "Arm (L)",
+        "arm_right": "Arm (R)",
+    }
+
+    # Get all injection site logs for this user
+    site_logs = db.query(InjectionSite).filter(
+        InjectionSite.user_id == user.id
+    ).order_by(InjectionSite.timestamp.desc()).all()
+
+    # Build lookup: site -> last used date
+    last_used = {}
+    for log in site_logs:
+        if log.site not in last_used:
+            last_used[log.site] = log.timestamp
+
+    # Find least recently used for recommendation
+    least_recent_site = None
+    least_recent_date = None
+    for site_key in SITES:
+        if site_key not in last_used:
+            least_recent_site = site_key
+            break
+        elif least_recent_date is None or last_used[site_key] < least_recent_date:
+            least_recent_date = last_used[site_key]
+            least_recent_site = site_key
+
+    # Display grid: 3 columns x 2 rows
+    st.markdown("**Injection Site History**")
+    if least_recent_site:
+        st.caption(f"Next recommended: **{SITES[least_recent_site]}** (least recently used)")
+
+    site_keys = list(SITES.keys())
+    for row in range(2):
+        cols = st.columns(3)
+        for col_idx in range(3):
+            site_key = site_keys[row * 3 + col_idx]
+            site_label = SITES[site_key]
+            with cols[col_idx]:
+                if site_key in last_used:
+                    days_ago = (datetime.now() - last_used[site_key]).days
+                    if days_ago <= 7:
+                        indicator = "🟢"
+                    elif days_ago <= 21:
+                        indicator = "🟡"
+                    else:
+                        indicator = "⚪"
+                    st.markdown(f"{indicator} **{site_label}**")
+                    st.caption(f"Last: {last_used[site_key].strftime('%b %d')} ({days_ago}d ago)")
+                else:
+                    st.markdown(f"⚪ **{site_label}**")
+                    st.caption("Never used")
+
+                if site_key == least_recent_site:
+                    st.caption("👆 Recommended next")
+
+    # Standalone log option
+    st.markdown("---")
+    st.markdown("**Log Injection Site Manually**")
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        selected = st.selectbox("Site", list(SITES.values()), key="manual_injection_site")
+    with col2:
+        st.write("")
+        st.write("")
+        if st.button("📍 Log Site", key="log_injection_site_manual"):
+            selected_key = site_keys[list(SITES.values()).index(selected)]
+            site_log = InjectionSite(
+                user_id=user.id,
+                site=selected_key,
+                timestamp=datetime.now()
+            )
+            db.add(site_log)
+            db.commit()
+            st.success(f"✅ Logged injection at {selected}")
+            st.rerun()
+
+
 def medication_page():
     st.title("💊 Medications")
-    
+
     db = Session()
     user = db.query(User).filter(User.id == st.session_state.user_id).first()
-    
-    # ============== MEDICATION CHECK-IN ==============
+
     now = datetime.now()
     current_date = now.date()
-    weekday = now.strftime("%A")
-    
+    today_start = datetime.combine(current_date, datetime.min.time())
+    weekday_full = now.strftime("%A")
+    weekday_short = weekday_full[:3]
+
+    # ============== DAILY CHECK-IN (always visible) ==============
     all_schedules = db.query(MedicationSchedule).filter(
         MedicationSchedule.user_id == user.id
     ).all()
-    
+
+    # Build list of ALL meds due today (not just 15-min overdue)
     meds_due_today = []
     for s in all_schedules:
-        if s.days and s.time:
+        if s.days:
             days_list = s.days.split(",")
-            if "Daily" in days_list or weekday in days_list:
-                sched_hour, sched_min = map(int, s.time.split(":"))
-                sched_time = now.replace(hour=sched_hour, minute=sched_min, second=0, microsecond=0)
-                time_diff = (now - sched_time).total_seconds() / 60
-                if time_diff >= 15:
-                    meds_due_today.append(s)
-    
-    if meds_due_today:
-        today_start = datetime.combine(current_date, datetime.min.time())
-        already_logged = db.query(MedicationLog).filter(
-            MedicationLog.user_id == user.id,
-            MedicationLog.taken == 1,
-            MedicationLog.timestamp >= today_start
-        ).first()
-        
-        if not already_logged:
-            meds_by_time = {}
-            for s in meds_due_today:
-                if s.time not in meds_by_time:
-                    meds_by_time[s.time] = []
-                meds_by_time[s.time].append(s)
-            
-            st.warning("💊 **Medication Check-In**")
-            for time_slot, meds in sorted(meds_by_time.items()):
-                med_names = ", ".join([f"{s.medication} ({s.dosage})" if s.dosage else s.medication for s in meds])
-                st.markdown(f"• **{time_slot}**: {med_names}")
-            
-            st.markdown("Did you take all of these medications?")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Yes, I took all of them"):
+            if "Daily" in days_list or weekday_full in days_list or weekday_short in days_list:
+                meds_due_today.append(s)
+
+    # Check which are already logged
+    logged_meds_today = set()
+    today_logs = db.query(MedicationLog).filter(
+        MedicationLog.user_id == user.id,
+        MedicationLog.taken == 1,
+        MedicationLog.timestamp >= today_start
+    ).all()
+    for log in today_logs:
+        logged_meds_today.add(log.medication)
+
+    # Dismiss flag for "not yet"
+    dismissed_key = f"checkin_dismissed_{current_date.isoformat()}"
+
+    pending_meds = [s for s in meds_due_today if s.medication not in logged_meds_today]
+    all_logged = len(pending_meds) == 0 and len(meds_due_today) > 0
+
+    if meds_due_today and not all_logged and not st.session_state.get(dismissed_key, False):
+        # Time-of-day greeting
+        hour = now.hour
+        if hour < 12:
+            greeting = "Good morning"
+        elif hour < 17:
+            greeting = "Good afternoon"
+        else:
+            greeting = "Good evening"
+
+        st.markdown(f"### {greeting}! Daily Check-In")
+
+        for s in meds_due_today:
+            is_logged = s.medication in logged_meds_today
+            if is_logged:
+                st.markdown(f"✅ ~~{s.medication} ({s.dosage or ''})~~ — {s.time} — **Logged**")
+            else:
+                time_str = s.time or ""
+                sched_hour = None
+                if s.time:
                     try:
-                        for s in meds_due_today:
-                            log = MedicationLog(
+                        sched_hour, sched_min = map(int, s.time.split(":"))
+                    except ValueError:
+                        pass
+
+                if sched_hour is not None and now.hour < sched_hour:
+                    st.markdown(f"⏳ {s.medication} ({s.dosage or ''}) — {time_str} — *Not due yet*")
+                else:
+                    st.markdown(f"⚪ {s.medication} ({s.dosage or ''}) — {time_str} — **Pending**")
+
+        # GLP-1 next dose inline
+        if user.glp1_medication:
+            last_glp1 = db.query(MedicationLog).filter(
+                MedicationLog.user_id == user.id,
+                MedicationLog.medication.like(f"%{user.glp1_medication.split('(')[0].strip().split()[0]}%"),
+                MedicationLog.taken == 1
+            ).order_by(MedicationLog.timestamp.desc()).first()
+            if last_glp1:
+                next_dose = last_glp1.timestamp + timedelta(days=7)
+                days_until = (next_dose - now).days
+                if days_until <= 0:
+                    st.markdown(f"💉 **GLP-1 dose is due!** (last: {last_glp1.timestamp.strftime('%b %d')})")
+                elif days_until <= 2:
+                    st.markdown(f"💉 GLP-1 dose in **{days_until} day{'s' if days_until != 1 else ''}**")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if pending_meds and st.button("✅ Yes, all taken", key="checkin_yes", type="primary"):
+                try:
+                    for s in pending_meds:
+                        log = MedicationLog(
+                            user_id=user.id,
+                            medication=s.medication,
+                            dosage=s.dosage,
+                            taken=1,
+                            timestamp=now
+                        )
+                        db.add(log)
+                        # Update history
+                        existing_hist = db.query(MedicationHistory).filter(
+                            MedicationHistory.user_id == user.id,
+                            MedicationHistory.medication == s.medication,
+                            MedicationHistory.dosage == s.dosage
+                        ).first()
+                        if existing_hist:
+                            existing_hist.last_used = now
+                            existing_hist.use_count += 1
+                        else:
+                            hist = MedicationHistory(
                                 user_id=user.id,
                                 medication=s.medication,
                                 dosage=s.dosage,
-                                taken=1,
-                                timestamp=now
+                                last_used=now,
+                                use_count=1
                             )
-                            db.add(log)
-                        db.commit()
-                        st.session_state.pop("pattern_insights_cache", None)
-                        st.success(f"✅ {len(meds_due_today)} medication(s) logged!")
-                        st.rerun()
-                    except Exception as e:
-                        db.rollback()
-                        st.error(f"❌ Error: {e}")
-            with col2:
-                if st.button("❌ No / Not yet"):
-                    st.info("💊 Reminder: Log when you take them!")
+                            db.add(hist)
+                    db.commit()
+                    st.session_state.pop("pattern_insights_cache", None)
+                    st.success(f"✅ {len(pending_meds)} medication(s) logged!")
                     st.rerun()
-            st.markdown("---")
-    
-    # ============== ADD SCHEDULED MEDICATION ==============
-    st.subheader("➕ Add Scheduled Medication")
-    
-    TIME_OPTIONS = [f"{h:02d}:{m:02d}" for h in range(6, 24) for m in [0, 30]]
-    
-    # Day selection - OUTSIDE form for dynamic updates
-    st.markdown("**Schedule:**")
-    is_daily = st.checkbox("Daily", value=True, key="is_daily_checkbox")
-    
-    if not is_daily:
-        st.markdown("Select days:")
-        day_cols = st.columns(7)
-        selected_days = []
-        day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        for i, day in enumerate(day_options):
-            with day_cols[i]:
-                if st.checkbox(day, key=f"day_{day}", value=(i < 5)):
-                    selected_days.append(day)
-    else:
-        selected_days = ["Daily"]
-    
-    # Time selection - OUTSIDE form for dynamic updates
-    st.markdown("**Times:**")
-    num_times = st.number_input("How many times per day?", min_value=1, max_value=4, value=1, key="num_times_input")
-    
-    with st.form("add_scheduled_med", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            med_name = st.text_input("Medication Name", placeholder="e.g., Metformin")
+                except Exception as e:
+                    db.rollback()
+                    st.error(f"Error logging medications: {e}")
         with col2:
-            dosage = st.text_input("Dosage", placeholder="e.g., 500mg")
-        
-        # Time inputs (outside form so they update dynamically)
-        time_cols = st.columns(min(num_times, 4))
-        time0 = time1 = time2 = time3 = None
-        
-        if num_times >= 1:
-            with time_cols[0]:
-                time0 = st.selectbox("Time 1", TIME_OPTIONS, index=3, key="time_0")
-        if num_times >= 2:
-            with time_cols[1]:
-                time1 = st.selectbox("Time 2", TIME_OPTIONS, index=21, key="time_1")
-        if num_times >= 3:
-            with time_cols[2]:
-                time2 = st.selectbox("Time 3", TIME_OPTIONS, index=3, key="time_2")
-        if num_times >= 4:
-            with time_cols[3]:
-                time3 = st.selectbox("Time 4", TIME_OPTIONS, index=21, key="time_3")
-        
-        # Collect selected times
-        selected_times = [t for t in [time0, time1, time2, time3] if t]
-        
-        if st.form_submit_button("➕ Add Medication"):
-            if med_name and selected_times:
-                for t in selected_times:
-                    schedule = MedicationSchedule(
-                        user_id=user.id,
-                        medication=med_name,
-                        dosage=dosage,
-                        time=t,
-                        days=",".join(selected_days)
-                    )
-                    db.add(schedule)
-                db.commit()
-                st.success(f"✅ Added {med_name} ({len(selected_times)} time(s))")
+            if st.button("Not yet", key="checkin_not_yet"):
+                st.session_state[dismissed_key] = True
                 st.rerun()
-            else:
-                st.error("Name and at least one time required")
-    
+
+        st.markdown("---")
+    elif all_logged and meds_due_today:
+        st.success("✅ All scheduled medications logged for today!")
+        st.markdown("---")
+
+    # ============== GLP-1 CYCLE TRACKER (always visible) ==============
+    glp1_cycle_tracker(user, db)
+
     st.markdown("---")
-    
-    # ============== YOUR MEDICATIONS ==============
-    st.subheader("💊 Your Medications")
-    
-    # Get all scheduled meds
-    all_schedules = db.query(MedicationSchedule).filter(
-        MedicationSchedule.user_id == user.id
-    ).order_by(MedicationSchedule.time).all()
-    
-    if all_schedules:
-        today = date.today()
-        today_start = datetime.combine(today, datetime.min.time())
-        weekday = today.strftime("%A")[:3]  # Mon, Tue, etc.
-        
-        for s in all_schedules:
-            # Check if this med is due today
-            days_list = s.days.split(",") if s.days else []
-            is_due_today = "Daily" in days_list or weekday in days_list
-            
-            # Check if logged today
-            logged_today = db.query(MedicationLog).filter(
-                MedicationLog.user_id == user.id,
-                MedicationLog.medication == s.medication,
-                MedicationLog.taken == 1,
-                MedicationLog.timestamp >= today_start
-            ).first()
-            
-            with st.container():
+
+    # ============== COLLAPSIBLE SECTIONS ==============
+
+    # --- 3. Your Scheduled Medications ---
+    with st.expander("💊 Your Scheduled Medications", expanded=True):
+        # Show existing scheduled meds with inline log buttons
+        all_scheds = db.query(MedicationSchedule).filter(
+            MedicationSchedule.user_id == user.id
+        ).order_by(MedicationSchedule.time).all()
+
+        if all_scheds:
+            for s in all_scheds:
+                days_list = s.days.split(",") if s.days else []
+                is_due = "Daily" in days_list or weekday_full in days_list or weekday_short in days_list
+
+                logged = db.query(MedicationLog).filter(
+                    MedicationLog.user_id == user.id,
+                    MedicationLog.medication == s.medication,
+                    MedicationLog.taken == 1,
+                    MedicationLog.timestamp >= today_start
+                ).first()
+
                 col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
                 with col1:
-                    status_icon = "🟢" if logged_today else "⚪"
-                    st.write(f"{status_icon} **{s.medication}** {s.dosage or ''}")
+                    icon = "🟢" if logged else "⚪"
+                    st.write(f"{icon} **{s.medication}** {s.dosage or ''}")
                 with col2:
-                    st.caption(f"⏰ {s.time}")
+                    st.caption(f"⏰ {s.time or 'Any'}")
                 with col3:
-                    days_str = s.days if s.days else "Daily"
-                    st.caption(f"📅 {days_str}")
+                    st.caption(f"📅 {s.days or 'Daily'}")
                 with col4:
-                    if is_due_today and not logged_today:
-                        if st.button("✅ Log", key=f"log_{s.id}"):
+                    if is_due and not logged:
+                        if st.button("✅", key=f"log_sched_{s.id}"):
                             log = MedicationLog(
                                 user_id=user.id,
                                 medication=s.medication,
@@ -2168,254 +2550,234 @@ def medication_page():
                             db.add(log)
                             db.commit()
                             st.rerun()
-                    elif logged_today:
-                        st.caption("✅ Logged")
+                    elif logged:
+                        st.caption("✅")
                 with col5:
-                    if st.button("🗑️", key=f"del_{s.id}"):
+                    if st.button("🗑️", key=f"del_sched_{s.id}"):
                         db.query(MedicationSchedule).filter(MedicationSchedule.id == s.id).delete()
                         db.commit()
                         st.rerun()
-                st.markdown("---")
-    else:
-        st.info("No medications scheduled. Add one above!")
-    
-    st.markdown("---")
-    
-    # Current meds display
-    col1, col2 = st.columns(2)
-    with col1:
-        if user.glp1_medication:
-            st.metric("💉 GLP-1", user.glp1_medication, user.glp1_dosage)
         else:
-            st.metric("💉 GLP-1", "Not set")
-    with col2:
-        if user.other_diabetes_med:
-            st.metric("💊 Diabetes", user.other_diabetes_med)
-        else:
-            st.metric("💊 Diabetes", "Not set")
-    
-    st.markdown("---")
-    
-    # ============== QUICK ADD ==============
-    st.subheader("⚡ Quick Add")
-    
-    # Get user's medication history (previous med+dose combinations)
-    med_history = db.query(MedicationHistory).filter(
-        MedicationHistory.user_id == st.session_state.user_id
-    ).order_by(MedicationHistory.last_used.desc()).limit(10).all()
-    
-    # Also include user's current saved medications
-    quick_add_options = []
-    if user.glp1_medication:
-        quick_add_options.append({
-            "medication": user.glp1_medication,
-            "dosage": user.glp1_dosage,
-            "source": "Current GLP-1"
-        })
-    if user.other_diabetes_med:
-        quick_add_options.append({
-            "medication": user.other_diabetes_med,
-            "dosage": user.other_diabetes_med,
-            "source": "Current Diabetes Med"
-        })
-    
-    # Add from history
-    for h in med_history:
-        existing = any(o["medication"] == h.medication and o.get("dosage") == h.dosage for o in quick_add_options)
-        if not existing:
-            quick_add_options.append({
-                "medication": h.medication,
-                "dosage": h.dosage,
-                "source": f"Previous (used {h.use_count}x)"
-            })
-    
-    if quick_add_options:
-        # Create display options for the selectbox
-        display_options = ["➕ Add New Medication..."]
-        for opt in quick_add_options:
-            dose_str = f" - {opt['dosage']}" if opt.get('dosage') else ""
-            display_options.append(f"{opt['medication']}{dose_str} ({opt['source']})")
-        
-        # Quick add section
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            selected_quick = st.selectbox("Select from previous medications", display_options, key="quick_select")
-        with col2:
-            st.write("")  # spacer
-            st.write("")  # spacer
-            if st.button("✅ Quick Log", key="quick_log_btn"):
-                if selected_quick != "➕ Add New Medication...":
-                    # Parse the selected option
-                    selected_idx = display_options.index(selected_quick) - 1
-                    opt = quick_add_options[selected_idx]
-                    
-                    # Log the medication
-                    log = MedicationLog(
-                        user_id=st.session_state.user_id,
-                        medication=opt["medication"],
-                        dosage=opt.get("dosage"),
-                        taken=1
-                    )
-                    db.add(log)
-                    
-                    # Update or create history entry
-                    existing_hist = db.query(MedicationHistory).filter(
-                        MedicationHistory.user_id == st.session_state.user_id,
-                        MedicationHistory.medication == opt["medication"],
-                        MedicationHistory.dosage == opt.get("dosage")
-                    ).first()
-                    
-                    if existing_hist:
-                        existing_hist.last_used = datetime.now()
-                        existing_hist.use_count += 1
-                    else:
-                        hist = MedicationHistory(
-                            user_id=st.session_state.user_id,
-                            medication=opt["medication"],
-                            dosage=opt.get("dosage"),
-                            last_used=datetime.now(),
-                            use_count=1
-                        )
-                        db.add(hist)
-                    
-                    db.commit()
-                    st.success(f"✅ Logged {opt['medication']}!")
-                    st.rerun()
-        
-        # Quick add ALL at once - for users taking 3-4 meds together
+            st.info("No medications scheduled yet.")
+
+        # Add new medication sub-section
         st.markdown("---")
-        st.markdown("**Or log ALL your daily medications at once:**")
-        
-        # Show toggle options for each med
-        cols = st.columns(len(quick_add_options)) if quick_add_options else st.columns(1)
-        
-        meds_to_log_all = []
-        for i, opt in enumerate(quick_add_options):
-            with cols[i % len(cols)]:
-                dose_str = f" - {opt['dosage']}" if opt.get('dosage') else ""
-                checked = st.checkbox(f"{opt['medication']}{dose_str}", value=True, key=f"log_all_{i}")
-                if checked:
-                    meds_to_log_all.append(opt)
-        
-        if meds_to_log_all and st.button("📝 Log All Selected", key="log_all_btn"):
-            for opt in meds_to_log_all:
-                log = MedicationLog(
-                    user_id=st.session_state.user_id,
-                    medication=opt["medication"],
-                    dosage=opt.get("dosage"),
-                    taken=1
-                )
-                db.add(log)
-                
-                # Update history
-                existing_hist = db.query(MedicationHistory).filter(
-                    MedicationHistory.user_id == st.session_state.user_id,
-                    MedicationHistory.medication == opt["medication"],
-                    MedicationHistory.dosage == opt.get("dosage")
-                ).first()
-                
-                if existing_hist:
-                    existing_hist.last_used = datetime.now()
-                    existing_hist.use_count += 1
-                else:
-                    hist = MedicationHistory(
-                        user_id=st.session_state.user_id,
-                        medication=opt["medication"],
-                        dosage=opt.get("dosage"),
-                        last_used=datetime.now(),
-                        use_count=1
-                    )
-                    db.add(hist)
-            
-            db.commit()
-            logged_names = ", ".join([m["medication"] for m in meds_to_log_all])
-            st.session_state.pop("pattern_insights_cache", None)
-            st.success(f"✅ Logged all: {logged_names}")
-            st.rerun()
-    else:
-        st.info("Set your medications above to enable quick add")
-    
-    st.markdown("---")
-    
-    # ============== FEATURE 2: MEDICATION REMINDERS ==============
-    st.subheader("⏰ Medication Reminders")
-    
-    # Get existing reminders
-    reminders = db.query(MedicationReminder).filter(
-        MedicationReminder.user_id == st.session_state.user_id
-    ).all()
-    
-    # Calculate and show next dose for GLP-1 (weekly medications)
-    if user.glp1_medication:
-        # Get last GLP-1 log
-        last_glp1 = db.query(MedicationLog).filter(
-            MedicationLog.user_id == st.session_state.user_id,
-            MedicationLog.medication.like(f"%{user.glp1_medication.split()[0]}%"),
-            MedicationLog.taken == 1
-        ).order_by(MedicationLog.timestamp.desc()).first()
-        
-        if last_glp1:
-            # GLP-1 is typically weekly
-            next_dose = last_glp1.timestamp + timedelta(days=7)
-            days_until = (next_dose - datetime.now()).days
-            
-            if days_until >= 0:
-                st.info(f"💉 **Next dose of {user.glp1_medication}:** {next_dose.strftime('%A, %b %d at %I:%M %p')} ({days_until} days)")
-            else:
-                st.warning(f"💉 **Due for {user.glp1_medication}!** Last dose was {abs(days_until)} days ago")
+        st.markdown("**Add New Medication**")
+
+        TIME_OPTIONS = [f"{h:02d}:{m:02d}" for h in range(6, 24) for m in [0, 30]]
+
+        is_daily = st.checkbox("Daily", value=True, key="sched_is_daily")
+        if not is_daily:
+            day_cols = st.columns(7)
+            selected_days = []
+            day_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            for i, day in enumerate(day_options):
+                with day_cols[i]:
+                    if st.checkbox(day, key=f"sched_day_{day}", value=(i < 5)):
+                        selected_days.append(day)
         else:
-            st.info(f"💉 Log your first dose of {user.glp1_medication} to track your schedule")
-    
-    # Show active reminders
-    if reminders:
-        st.markdown("**Your active reminders:**")
-        for rem in reminders:
-            if rem.is_active:
-                day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-                day_str = day_names[rem.reminder_day] if rem.reminder_day is not None else "Not set"
-                time_str = rem.reminder_time or "Not set"
-                st.write(f"📅 **{rem.medication}** - {day_str} at {time_str}")
-    else:
-        st.info("No reminders set. Add one below!")
-    
-    # Add/Edit reminder form
-    with st.expander("➕ Set Medication Reminder"):
-        with st.form("reminder_form"):
-            # Select medication for reminder
-            reminder_med = st.selectbox("Medication", 
-                [user.glp1_medication, user.other_diabetes_med] if user.glp1_medication or user.other_diabetes_med else [""])
-            
-            reminder_dose = st.text_input("Dosage (optional)", placeholder="e.g., 5mg")
-            
+            selected_days = ["Daily"]
+
+        num_times = st.number_input("Times per day", min_value=1, max_value=4, value=1, key="sched_num_times")
+
+        with st.form("add_scheduled_med_new", clear_on_submit=True):
             col1, col2 = st.columns(2)
             with col1:
-                reminder_day = st.selectbox("Day of Week", 
-                    list(range(7)), 
-                    format_func=lambda x: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][x],
-                    index=0)
+                med_name = st.text_input("Medication Name", placeholder="e.g., Metformin")
             with col2:
-                reminder_time = st.time_input("Time", value=None)
-            
-            # Determine if GLP-1 (weekly) or daily med
-            is_weekly = st.checkbox("Weekly medication (like Ozempic, Wegovy, Mounjaro)", value=True)
-            
+                dosage = st.text_input("Dosage", placeholder="e.g., 500mg")
+
+            time_cols = st.columns(min(num_times, 4))
+            time_vals = [None] * 4
+            for t_idx in range(min(num_times, 4)):
+                with time_cols[t_idx]:
+                    default_idx = 3 if t_idx % 2 == 0 else 21
+                    time_vals[t_idx] = st.selectbox(f"Time {t_idx+1}", TIME_OPTIONS, index=default_idx, key=f"sched_time_{t_idx}")
+
+            selected_times = [t for t in time_vals if t]
+
+            if st.form_submit_button("➕ Add Medication"):
+                if med_name and selected_times:
+                    for t in selected_times:
+                        schedule = MedicationSchedule(
+                            user_id=user.id,
+                            medication=med_name,
+                            dosage=dosage,
+                            time=t,
+                            days=",".join(selected_days)
+                        )
+                        db.add(schedule)
+                    db.commit()
+                    st.success(f"✅ Added {med_name} ({len(selected_times)} time(s))")
+                    st.rerun()
+                else:
+                    st.error("Name and at least one time required")
+
+    # --- 4. Quick Log ---
+    with st.expander("⚡ Quick Log", expanded=False):
+        med_history = db.query(MedicationHistory).filter(
+            MedicationHistory.user_id == user.id
+        ).order_by(MedicationHistory.last_used.desc()).limit(10).all()
+
+        quick_add_options = []
+        if user.glp1_medication:
+            quick_add_options.append({
+                "medication": user.glp1_medication,
+                "dosage": user.glp1_dosage,
+                "source": "Current GLP-1"
+            })
+        if user.other_diabetes_med:
+            quick_add_options.append({
+                "medication": user.other_diabetes_med,
+                "dosage": None,
+                "source": "Current Diabetes Med"
+            })
+
+        for h in med_history:
+            existing = any(o["medication"] == h.medication and o.get("dosage") == h.dosage for o in quick_add_options)
+            if not existing:
+                quick_add_options.append({
+                    "medication": h.medication,
+                    "dosage": h.dosage,
+                    "source": f"Previous ({h.use_count}x)"
+                })
+
+        if quick_add_options:
+            # One-tap buttons for each med
+            st.markdown("**Tap to log:**")
+            cols = st.columns(min(len(quick_add_options), 3))
+            for i, opt in enumerate(quick_add_options):
+                with cols[i % min(len(quick_add_options), 3)]:
+                    dose_str = f" ({opt['dosage']})" if opt.get('dosage') else ""
+                    btn_label = f"💊 {opt['medication']}{dose_str}"
+                    if st.button(btn_label, key=f"quick_{i}"):
+                        log = MedicationLog(
+                            user_id=user.id,
+                            medication=opt["medication"],
+                            dosage=opt.get("dosage"),
+                            taken=1,
+                            timestamp=datetime.now()
+                        )
+                        db.add(log)
+
+                        existing_hist = db.query(MedicationHistory).filter(
+                            MedicationHistory.user_id == user.id,
+                            MedicationHistory.medication == opt["medication"],
+                            MedicationHistory.dosage == opt.get("dosage")
+                        ).first()
+                        if existing_hist:
+                            existing_hist.last_used = datetime.now()
+                            existing_hist.use_count += 1
+                        else:
+                            hist = MedicationHistory(
+                                user_id=user.id,
+                                medication=opt["medication"],
+                                dosage=opt.get("dosage"),
+                                last_used=datetime.now(),
+                                use_count=1
+                            )
+                            db.add(hist)
+
+                        db.commit()
+                        st.session_state.pop("pattern_insights_cache", None)
+                        st.success(f"✅ Logged {opt['medication']}!")
+                        st.rerun()
+
+            # Recent log list
+            st.markdown("---")
+            st.caption("**Recent logs:**")
+            recent = db.query(MedicationLog).filter(
+                MedicationLog.user_id == user.id,
+                MedicationLog.taken == 1
+            ).order_by(MedicationLog.timestamp.desc()).limit(5).all()
+            for r in recent:
+                st.caption(f"✅ {r.timestamp.strftime('%m/%d %I:%M%p')} — {r.medication} {r.dosage or ''}")
+        else:
+            st.info("Set your medications in Settings to enable quick log.")
+
+    # --- 5. Titration Schedule ---
+    with st.expander("📈 Titration Schedule", expanded=False):
+        titration_schedule_section(user, db)
+
+    # --- 6. Injection Site Rotation ---
+    with st.expander("📍 Injection Site Rotation", expanded=False):
+        injection_site_section(user, db)
+
+    # --- 7. Medication Reminders ---
+    with st.expander("⏰ Medication Reminders", expanded=False):
+        reminders = db.query(MedicationReminder).filter(
+            MedicationReminder.user_id == user.id
+        ).all()
+
+        # GLP-1 next dose info
+        if user.glp1_medication:
+            last_glp1 = db.query(MedicationLog).filter(
+                MedicationLog.user_id == user.id,
+                MedicationLog.medication.like(f"%{user.glp1_medication.split('(')[0].strip().split()[0]}%"),
+                MedicationLog.taken == 1
+            ).order_by(MedicationLog.timestamp.desc()).first()
+            if last_glp1:
+                next_dose = last_glp1.timestamp + timedelta(days=7)
+                days_until = (next_dose - datetime.now()).days
+                if days_until >= 0:
+                    st.info(f"💉 Next {user.glp1_medication}: {next_dose.strftime('%A, %b %d')} ({days_until} days)")
+                else:
+                    st.warning(f"💉 **Due for {user.glp1_medication}!** Last dose was {abs(days_until)} days ago")
+
+        if reminders:
+            st.markdown("**Active reminders:**")
+            for rem in reminders:
+                if rem.is_active:
+                    day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+                    day_str = day_names[rem.reminder_day] if rem.reminder_day is not None else "Not set"
+                    time_str = rem.reminder_time or "Not set"
+                    st.write(f"📅 **{rem.medication}** — {day_str} at {time_str}")
+        else:
+            st.info("No reminders set.")
+
+        # Add reminder form
+        with st.form("reminder_form_new"):
+            med_options = []
+            if user.glp1_medication:
+                med_options.append(user.glp1_medication)
+            if user.other_diabetes_med:
+                med_options.append(user.other_diabetes_med)
+            # Add from schedules
+            for s in all_schedules:
+                if s.medication not in med_options:
+                    med_options.append(s.medication)
+
+            if not med_options:
+                med_options = [""]
+
+            reminder_med = st.selectbox("Medication", med_options, key="rem_med")
+            reminder_dose = st.text_input("Dosage (optional)", placeholder="e.g., 5mg", key="rem_dose")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                reminder_day = st.selectbox("Day of Week",
+                    list(range(7)),
+                    format_func=lambda x: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][x],
+                    index=0, key="rem_day")
+            with col2:
+                reminder_time = st.time_input("Time", value=None, key="rem_time")
+
+            is_weekly = st.checkbox("Weekly medication", value=True, key="rem_weekly")
+
             if st.form_submit_button("🔔 Set Reminder"):
                 if reminder_med:
-                    # Check if reminder already exists
                     existing_reminder = db.query(MedicationReminder).filter(
-                        MedicationReminder.user_id == st.session_state.user_id,
+                        MedicationReminder.user_id == user.id,
                         MedicationReminder.medication == reminder_med
                     ).first()
-                    
+
                     if existing_reminder:
-                        # Update existing
                         existing_reminder.reminder_day = reminder_day
                         existing_reminder.reminder_time = reminder_time.strftime("%H:%M") if reminder_time else None
                         existing_reminder.is_active = 1
                     else:
-                        # Create new
                         new_reminder = MedicationReminder(
-                            user_id=st.session_state.user_id,
+                            user_id=user.id,
                             medication=reminder_med,
                             dosage=reminder_dose,
                             reminder_day=reminder_day,
@@ -2423,104 +2785,58 @@ def medication_page():
                             is_active=1
                         )
                         db.add(new_reminder)
-                    
+
                     db.commit()
                     freq = "weekly" if is_weekly else "daily"
-                    st.success(f"✅ Reminder set for {reminder_med} ({freq}) on {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][reminder_day]} at {reminder_time.strftime('%I:%M %p') if reminder_time else 'N/A'}!")
+                    st.success(f"✅ Reminder set for {reminder_med} ({freq})")
                     st.rerun()
                 else:
-                    st.warning("Please select a medication first")
-    
-    # Show option to delete reminders
-    if reminders:
-        with st.expander("🗑️ Manage Reminders"):
+                    st.warning("Select a medication first")
+
+        # Delete reminders
+        if reminders:
+            st.markdown("---")
+            st.markdown("**Manage Reminders:**")
             for rem in reminders:
                 col1, col2 = st.columns([3, 1])
                 with col1:
                     day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
                     day_str = day_names[rem.reminder_day] if rem.reminder_day is not None else "Not set"
                     time_str = rem.reminder_time or "Not set"
-                    status = "✅ Active" if rem.is_active else "❌ Inactive"
-                    st.write(f"{rem.medication} - {day_str} at {time_str} ({status})")
+                    status = "Active" if rem.is_active else "Inactive"
+                    st.write(f"{rem.medication} — {day_str} at {time_str} ({status})")
                 with col2:
-                    if st.button("Delete", key=f"del_rem_{rem.id}"):
+                    if st.button("🗑️", key=f"del_rem_{rem.id}"):
                         db.delete(rem)
                         db.commit()
                         st.rerun()
-    
-    st.markdown("---")
-    
-    # ============== LOG DOSE (Standard) ==============
-    st.subheader("✅ Log Today's Dose (Manual)")
-    
-    # Build user's med list
-    user_meds = []
-    if user.glp1_medication:
-        user_meds.append(f"💉 {user.glp1_medication}")
-    if user.other_diabetes_med:
-        user_meds.append(f"💊 {user.other_diabetes_med}")
-    
-    if not user_meds:
-        st.warning("Set medications above first!")
-    else:
-        with st.form("log_dose_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                log_med = st.selectbox("Medication", user_meds)
-            with col2:
-                log_dose = st.text_input("Dosage", placeholder="e.g., 5mg")
-            
-            taken = st.checkbox("Taken today", value=True)
-            
-            if st.form_submit_button("📝 Log"):
-                med_name = log_med.replace("💉 ", "").replace("💊 ", "")
-                log = MedicationLog(
-                    user_id=st.session_state.user_id,
-                    medication=med_name,
-                    dosage=log_dose if log_dose else user.glp1_dosage,
-                    taken=1 if taken else 0
-                )
-                db.add(log)
-                
-                # Update medication history
-                existing_hist = db.query(MedicationHistory).filter(
-                    MedicationHistory.user_id == st.session_state.user_id,
-                    MedicationHistory.medication == med_name
-                ).first()
-                
-                if existing_hist:
-                    existing_hist.last_used = datetime.now()
-                    existing_hist.use_count += 1
-                else:
-                    hist = MedicationHistory(
-                        user_id=st.session_state.user_id,
-                        medication=med_name,
-                        dosage=log_dose if log_dose else user.glp1_dosage,
-                        last_used=datetime.now(),
-                        use_count=1
-                    )
-                    db.add(hist)
-                
-                db.commit()
-                st.success(f"✅ Logged {med_name}!")
-                st.rerun()
-    
-    # History
-    st.markdown("---")
-    st.subheader("📝 Recent History")
-    
-    logs = db.query(MedicationLog).filter(
-        MedicationLog.user_id == st.session_state.user_id
-    ).order_by(MedicationLog.timestamp.desc()).limit(14).all()
+
+    # --- 8. Medication History ---
+    with st.expander("📝 Medication History", expanded=False):
+        # Filter dropdown
+        all_med_names = db.query(MedicationLog.medication).filter(
+            MedicationLog.user_id == user.id
+        ).distinct().all()
+        med_name_list = ["All"] + [m[0] for m in all_med_names]
+
+        filter_med = st.selectbox("Filter by medication", med_name_list, key="history_filter")
+
+        query = db.query(MedicationLog).filter(
+            MedicationLog.user_id == user.id
+        )
+        if filter_med != "All":
+            query = query.filter(MedicationLog.medication == filter_med)
+
+        logs = query.order_by(MedicationLog.timestamp.desc()).limit(30).all()
+
+        if logs:
+            for log in logs:
+                status = "✅" if log.taken else "⏳"
+                st.write(f"{status} {log.timestamp.strftime('%m/%d %I:%M%p')} — {log.medication} {log.dosage or ''}")
+        else:
+            st.info("No medication logs yet")
+
     db.close()
-    
-    if logs:
-        for log in logs:
-            status = "✅" if log.taken else "⏳"
-            st.write(f"{status} {log.timestamp.strftime('%m/%d')} - {log.medication} {log.dosage or ''}")
-    else:
-        st.info("No logs yet")
-        st.info("No medication logs yet")
 
 # =============================================================================
 # SIDE EFFECTS PAGE
@@ -4347,18 +4663,18 @@ def main():
             weight_page()
             st.markdown("---")
             glucose_page()
-
-        with tab_food:
-            food_page()
-
-        with tab_medication:
-            medication_page()
             st.markdown("---")
             side_effects_page()
             st.markdown("---")
             dexcom_import_page()
             st.markdown("---")
             google_fit_sync_page()
+
+        with tab_food:
+            food_page()
+
+        with tab_medication:
+            medication_page()
         
         with tab_settings:
             settings_page()
