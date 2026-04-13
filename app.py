@@ -1361,24 +1361,24 @@ PROTEIN: [number]"""
                             food_name = lines[0].strip()
                     
                     # CALORIES - look for "Calories: X" or "CALORIES: X" with various formats
-                    cal_match = re.search(r'(?:CALORIES|calories| Calories).*?(\d+)', ai_text, re.IGNORECASE)
+                    cal_match = re.search(r'(?:CALORIES|calories| Calories).*?([\d,]+)', ai_text, re.IGNORECASE)
                     if cal_match:
-                        calories = int(cal_match.group(1))
-                    
+                        calories = int(cal_match.group(1).replace(',', ''))
+
                     # CARBS - look for "Carbs: Xg" or "CARBS: X"
-                    carb_match = re.search(r'(?:CARBS|carbs| Carbs).*?(\d+)', ai_text, re.IGNORECASE)
+                    carb_match = re.search(r'(?:CARBS|carbs| Carbs).*?([\d,]+)', ai_text, re.IGNORECASE)
                     if carb_match:
-                        carbs = int(carb_match.group(1))
-                    
+                        carbs = int(carb_match.group(1).replace(',', ''))
+
                     # FAT
-                    fat_match = re.search(r'(?:FAT|fat| Fat).*?(\d+)', ai_text, re.IGNORECASE)
+                    fat_match = re.search(r'(?:FAT|fat| Fat).*?([\d,]+)', ai_text, re.IGNORECASE)
                     if fat_match:
-                        fat = int(fat_match.group(1))
-                    
+                        fat = int(fat_match.group(1).replace(',', ''))
+
                     # PROTEIN
-                    prot_match = re.search(r'(?:PROTEIN|protein| Protein).*?(\d+)', ai_text, re.IGNORECASE)
+                    prot_match = re.search(r'(?:PROTEIN|protein| Protein).*?([\d,]+)', ai_text, re.IGNORECASE)
                     if prot_match:
-                        protein = int(prot_match.group(1))
+                        protein = int(prot_match.group(1).replace(',', ''))
                     
                     st.session_state.ai_food_analysis = {
                         "food_name": food_name,
@@ -1482,16 +1482,16 @@ PROTEIN: [number]"""
                     messages=[
                         {
                             "role": "user",
-                            "content": f"""Estimate the nutritional content for this food: {quick_food_text}
+                            "content": f"""Estimate the total nutritional content for this food: {quick_food_text}
 
-Respond in this exact format:
+Respond in this exact format (use plain numbers with no commas):
 FOOD: [name of food or meal]
-CALORIES: [estimated calories]
-CARBS: [carbs in grams]
-FAT: [fat in grams]
-PROTEIN: [protein in grams]
+CALORIES: [estimated total calories as a whole number]
+CARBS: [total carbs in grams]
+FAT: [total fat in grams]
+PROTEIN: [total protein in grams]
 
-If multiple items are mentioned, list them all and estimate total nutrition."""
+If multiple items are mentioned, provide the combined totals only. Do not list individual items separately."""
                         }
                     ]
                 )
@@ -1509,21 +1509,21 @@ If multiple items are mentioned, list them all and estimate total nutrition."""
                 if food_match:
                     food_name = food_match.group(1).strip()
 
-                cal_match = re.search(r'CALORIES:\s*(\d+)', ai_text, re.IGNORECASE)
+                cal_match = re.search(r'CALORIES:\s*([\d,]+)', ai_text, re.IGNORECASE)
                 if cal_match:
-                    calories = int(cal_match.group(1))
+                    calories = int(cal_match.group(1).replace(',', ''))
 
-                carb_match = re.search(r'CARBS:\s*(\d+)', ai_text, re.IGNORECASE)
+                carb_match = re.search(r'CARBS:\s*([\d,]+)', ai_text, re.IGNORECASE)
                 if carb_match:
-                    carbs = int(carb_match.group(1))
+                    carbs = int(carb_match.group(1).replace(',', ''))
 
-                fat_match = re.search(r'FAT:\s*(\d+)', ai_text, re.IGNORECASE)
+                fat_match = re.search(r'FAT:\s*([\d,]+)', ai_text, re.IGNORECASE)
                 if fat_match:
-                    fat = int(fat_match.group(1))
+                    fat = int(fat_match.group(1).replace(',', ''))
 
-                prot_match = re.search(r'PROTEIN:\s*(\d+)', ai_text, re.IGNORECASE)
+                prot_match = re.search(r'PROTEIN:\s*([\d,]+)', ai_text, re.IGNORECASE)
                 if prot_match:
-                    protein = int(prot_match.group(1))
+                    protein = int(prot_match.group(1).replace(',', ''))
 
                 # Store in session state for the form
                 st.session_state.voice_food_analysis = {
@@ -1748,16 +1748,16 @@ Use standard nutritional data. Estimate portion sizes if not specified."""
                         st.write(ai_text)
                         
                         # Parse for quick summary
-                        cal_match = re.search(r'TOTAL CALORIES:\s*(\d+)', ai_text, re.IGNORECASE)
-                        carb_match = re.search(r'TOTAL CARBS:\s*(\d+)', ai_text, re.IGNORECASE)
-                        fat_match = re.search(r'TOTAL FAT:\s*(\d+)', ai_text, re.IGNORECASE)
-                        prot_match = re.search(r'TOTAL PROTEIN:\s*(\d+)', ai_text, re.IGNORECASE)
+                        cal_match = re.search(r'TOTAL CALORIES:\s*([\d,]+)', ai_text, re.IGNORECASE)
+                        carb_match = re.search(r'TOTAL CARBS:\s*([\d,]+)', ai_text, re.IGNORECASE)
+                        fat_match = re.search(r'TOTAL FAT:\s*([\d,]+)', ai_text, re.IGNORECASE)
+                        prot_match = re.search(r'TOTAL PROTEIN:\s*([\d,]+)', ai_text, re.IGNORECASE)
                         
                         if cal_match:
-                            total_cal = int(cal_match.group(1))
-                            total_carbs = int(carb_match.group(1)) if carb_match else 0
-                            total_fat = int(fat_match.group(1)) if fat_match else 0
-                            total_protein = int(prot_match.group(1)) if prot_match else 0
+                            total_cal = int(cal_match.group(1).replace(',', ''))
+                            total_carbs = int(carb_match.group(1).replace(',', '')) if carb_match else 0
+                            total_fat = int(fat_match.group(1).replace(',', '')) if fat_match else 0
+                            total_protein = int(prot_match.group(1).replace(',', '')) if prot_match else 0
                             
                             # Calculate per-serving nutrition
                             servings = recipe_servings
