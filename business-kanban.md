@@ -50,8 +50,8 @@
 | 6 | Protein + fiber dedicated fields in food log | S | Easy | 90-day plan, Week 2 |
 | 7 | Daily protein target with progress bar on dashboard | S | Easy | 90-day plan, Week 2 |
 | 8 | Hydration tracking (glass counter) | S | Easy | 90-day plan, Week 2 |
-| 9 | Titration schedule builder (visual dose escalation timeline) | M | Medium | 90-day plan, Week 3 |
-| 10 | Injection site rotation tracker with body map | M | Hard | 90-day plan, Week 3 |
+| ~~9~~ | ~~Titration schedule builder (visual dose escalation timeline)~~ | ~~M~~ | ~~Medium~~ | ✅ Done 2026-04-10 |
+| ~~10~~ | ~~Injection site rotation tracker with body map~~ | ~~M~~ | ~~Hard~~ | ✅ Done 2026-04-10 |
 | 11 | Medication reminder notifications | M | Medium | 90-day plan, Week 3 |
 | 12 | Dose-response analysis card per dose transition | M | Medium | 90-day plan, Week 3 |
 | 13 | Fix custom domain — glp1companion.io pointing to app | S | Easy | 90-day plan, Week 4 |
@@ -113,6 +113,12 @@
 | — | Landing page + auth + basic tracking MVP | 2026-02-21 |
 | — | Marketing landing page copy + implementation | 2026-04-02 |
 | — | Fix landing page text colors for cached browsers | 2026-04-02 |
+| 1-4 | Pattern engine (weight↔dose, side effects, food/protein) + Insights card | 2026-04-02 |
+| 5 | PDF doctor export with charts, patterns, nutrition summary | 2026-04-10 |
+| 9 | Titration schedule builder (visual dose escalation timeline) | 2026-04-10 |
+| 10 | Injection site rotation tracker with body map | 2026-04-10 |
+| — | Medications tab redesign (GLP-1 cycle tracker, daily check-in, collapsible sections) | 2026-04-10 |
+| — | Health tab reorganization (moved side effects, Dexcom, Google Fit from Meds) | 2026-04-10 |
 
 ---
 
@@ -147,4 +153,4 @@
 
 ---
 
-*Last updated: 2026-04-02*
+*Last updated: 2026-04-10*
